@@ -1,0 +1,11 @@
+snetmanmon
+
+// A simple network manager and monitor for Linux
+
+(C) 2015 Alexander Holler
+
+
+To build snetmanmon call
+
+cmake -DCMAKE_BUILD_TYPE=release
+make

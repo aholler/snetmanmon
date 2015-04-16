@@ -1,0 +1,7 @@
+*.o
+*.swp
+version.h
+CMakeCache.txt
+CMakeFiles
+Makefile
+cmake_install.cmake
