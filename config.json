@@ -1,0 +1,102 @@
+{
+
+// This config is used for development and is a playground.
+
+"events": {
+	"link_new": {
+		"filter": {
+			// http://www.boost.org/doc/libs/1_58_0/libs/regex/doc/html/boost_regex/syntax/basic_extended.html
+			"ifname" : "enp0s29u1u2", // regex
+			"address" : "36:ca:63:6:b6:4d", // regex
+			// state can be unknown, notpresent, down,
+			// lowerlayerdown, testing, dormant, up
+			"state": "down", // regex
+			"actions": {
+				// %e event
+				// %i ifname
+				// %o ifname_old
+				// %a address
+				// %s state
+				"stdout": "link_new_filter e:'%e' i:'%i' o:'%o' a:'%a' s:'%s'"
+			}
+		},
+		"filter": {
+			"ifname_old": ".+", // regex, not empty => if renamed
+			"actions": {
+				"stdout": "link renamed e:'%e' i:'%i' o:'%o' a:'%a' s:'%s'"
+			}
+		},
+		"filter": {
+			"ifname_old": "^$", // regex, empty => if not renamed
+			"actions": {
+				"stdout": "link new or changed e:'%e' i:'%i' o:'%o' a:'%a' s:'%s'"
+			}
+		},
+		"filter": {
+			"ifname_old": "^$",
+			"state": "unknown|up",
+			"actions": {
+				"stdout": "link unknown or up e:'%e' i:'%i' o:'%o' a:'%a' s:'%s'"
+			}
+		},
+		"actions": {
+			"stdout": "link_new e:'%e' i:'%i' o:'%o' a:'%a' s:'%s'"
+		}
+	},
+	"link_del": {
+		"filter": {
+			"ifname": "enp0s29u1u2",
+			"address": "36:ca:63:6:b6:4d",
+			"state": "down",
+			"actions": {
+				"stdout": "link_del_filter e:'%e' i:'%i' a:'%a' s:'%s'"
+			}
+		},
+		"actions": {
+			"stdout": "link_del e:'%e' i:'%i' a:'%a' s:'%s'"
+		}
+	},
+	"addr_new": {
+		"filter": {
+			"ifname": "enp0s29u1u2",
+			"type": "v4", // no regex!
+			"address": "192\\.168.*",
+			"actions": {
+				"stdout": "addr_new_filter e:'%e' i:'%i' t:'%t' a:'%a' b:'%b'"
+			}
+		},
+		"filter": {
+			"ifname": "bnep[0-9]",
+			"type": "v6",
+			"address": "feeb::.*",
+			"actions": {
+				"stdout": "addr_new_filter_2 e:'%e' i:'%i' t:'%t' a:'%a' b:'%b'"
+			}
+		},
+		"filter": {
+			"ifname": "bnep0",
+			"type": "v6",
+			"actions": {
+				"stdout": "addr_new_filter_3 e:'%e' i:'%i' t:'%t' a:'%a' b:'%b'"
+			}
+		},
+		"actions": {
+			"stdout": "addr_new e:'%e' i:'%i' t:'%t' a:'%a' b:'%b'"
+		}
+	},
+	"addr_del": {
+		"filter": {
+			"ifname": "enp0s29u1u2",
+			"type": "v4",
+			"address": "192\\.168\\.7\\.1",
+			"broadcast": "192\\.168\\.7\\.3",
+			"actions": {
+				"stdout": "addr_del_filter e:'%e' i:'%i' t:'%t' a:'%a' b:'%b'"
+			}
+		},
+		"actions": {
+			"stdout": "addr_del e:'%e' i:'%i' t:'%t' a:'%a' b:'%b'"
+		}
+	}
+} // events
+}
