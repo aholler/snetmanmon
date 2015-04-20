@@ -2,6 +2,9 @@
 
 // This config is used for development and is a playground.
 
+"link_new_for_existing_links": "1", // default false/0
+"addr_new_for_existing_addresses": "true", // default false/0
+
 "events": {
 	"link_new": {
 		"filter": {
@@ -10,6 +13,8 @@
 			"address" : "36:ca:63:6:b6:4d", // regex
 			// state can be unknown, notpresent, down,
 			// lowerlayerdown, testing, dormant, up
+			// The state for generated events for existing
+			// links (interfaces) is either up or down.
 			"state": "down", // regex
 			"actions": {
 				// %e event

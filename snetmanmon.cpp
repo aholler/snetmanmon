@@ -137,6 +137,8 @@ class Settings {
 		FiltersLink filters_link_del;
 		FiltersAddress filters_addr_new;
 		FiltersAddress filters_addr_del;
+		bool link_new_for_existing_links;
+		bool addr_new_for_existing_addresses;
 		void load(const std::string& path);
 };
 
@@ -209,6 +211,9 @@ void Settings::load(const std::string& path)
 {
 	boost::property_tree::ptree pt;
 	read_json(path, pt);
+
+	link_new_for_existing_links = pt.get<bool>("link_new_for_existing_links", false);
+	addr_new_for_existing_addresses = pt.get<bool>("addr_new_for_existing_addresses", false);
 	boost::property_tree::ptree& events(pt.get_child("events"));
 	add_link_events(events, "link_new", actions_link_new, filters_link_new);
 	add_link_events(events, "link_del", actions_link_del, filters_link_del);
@@ -486,6 +491,55 @@ static void addr_del(const nlmsghdr* hdr)
 	}
 }
 
+std::string get_eth_addr(ifaddrs* ifa)
+{
+	size_t len = ::strlen(ifa->ifa_name);
+	ifreq ifr;
+	if (len > sizeof(ifr.ifr_name) - 1)
+		return "";
+	std::memcpy(ifr.ifr_name, ifa->ifa_name, len+1);
+	int fd = ::socket(AF_UNIX,SOCK_DGRAM, 0);
+	if (fd == -1)
+		return "";
+	int rc = ::ioctl(fd, SIOCGIFHWADDR, &ifr);
+	::close(fd);
+	if (rc == -1)
+		return "";
+	if (ifr.ifr_hwaddr.sa_family != ARPHRD_ETHER)
+		return "";
+	const unsigned char* mac = reinterpret_cast<const unsigned char*>(ifr.ifr_hwaddr.sa_data);
+	std::ostringstream os;
+	os << std::setfill('0') << std::hex <<
+		std::setw(2) << (unsigned)mac[0] << ':' << std::setw(2) << (unsigned)mac[1] << ':' <<
+		std::setw(2) << (unsigned)mac[2] << ':' << std::setw(2) << (unsigned)mac[3] << ':' <<
+		std::setw(2) << (unsigned)mac[4] << ':' << std::setw(2) << (unsigned)mac[5];
+        return os.str();
+}
+
+static void generate_evt_link(ifaddrs* ifa)
+{
+	EventLink evt;
+	evt.ifname = ifa->ifa_name;
+	evt.address = get_eth_addr(ifa);
+	if (ifa->ifa_flags & IFF_UP)
+		evt.state = "up";
+	else
+		evt.state = "down";
+	do_link_actions(evt, "link_new", settings.actions_link_new);
+	do_link_filters(evt, "link_new", settings.filters_link_new);
+}
+
+static void generate_evt_addr(const std::string& ifname, const boost::asio::ip::address&& addr, std::string&& broadcast)
+{
+	EventAddr evt;
+	evt.ifname = ifname;
+	evt.address = addr.to_string();
+	evt.broadcast = std::move(broadcast);
+	evt.type_v6 = addr.is_v6();
+	do_addr_actions(evt, "addr_new", settings.actions_addr_new);
+	do_addr_filters(evt, "addr_new", settings.filters_addr_new);
+}
+
 static void populate_ifs(void)
 {
 	ifaddrs* ifaddr;
@@ -501,17 +555,27 @@ static void populate_ifs(void)
 		unsigned idx = if_nametoindex(ifa->ifa_name);
 		if (!idx)
 			continue;
-		map_idx_if.insert(std::pair<unsigned, std::string>(idx, ifa->ifa_name));
+		auto if_inserted = map_idx_if.insert(std::pair<unsigned, std::string>(idx, ifa->ifa_name));
+		if (if_inserted.second && settings.link_new_for_existing_links)
+			generate_evt_link(ifa);
 		if (ifa->ifa_addr == nullptr)
 			continue;
 		int family = ifa->ifa_addr->sa_family;
 		if (family == AF_INET || family == AF_INET6) {
 			auto inserted = map_idx_addrs.insert(std::pair<unsigned, SetIps>(idx, SetIps()));
 			if (inserted.first != map_idx_addrs.end()) {
+				boost::asio::ip::address addr;
 				if (family == AF_INET)
-					inserted.first->second.insert(in_addr_to_address(*reinterpret_cast<const sockaddr_in*>(ifa->ifa_addr)));
+					addr = in_addr_to_address(*reinterpret_cast<const sockaddr_in*>(ifa->ifa_addr));
 				else
-					inserted.first->second.insert(in_addr_to_address(*reinterpret_cast<const sockaddr_in6*>(ifa->ifa_addr)));
+					addr = in_addr_to_address(*reinterpret_cast<const sockaddr_in6*>(ifa->ifa_addr));
+				auto addr_inserted = inserted.first->second.insert(addr);
+				if (addr_inserted.second && settings.addr_new_for_existing_addresses) {
+					std::string broadcast;
+					if (ifa->ifa_flags & IFF_BROADCAST && ifa->ifa_broadaddr && ifa->ifa_broadaddr->sa_family == AF_INET)
+						broadcast = in_addr_to_address(*reinterpret_cast<const sockaddr_in*>(ifa->ifa_broadaddr)).to_string();
+					generate_evt_addr(ifa->ifa_name, std::move(addr), std::move(broadcast));
+				}
 			}
 		}
 	}
