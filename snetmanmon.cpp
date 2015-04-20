@@ -11,6 +11,8 @@
 #include <map>
 #include <set>
 #include <cassert>
+#include <thread>
+#include <cstdlib> // std::system
 
 #include <boost/property_tree/json_parser.hpp>
 #include <boost/regex.hpp>
@@ -93,6 +95,10 @@ class EventAddr : public Event
 
 struct Action
 {
+	enum Type {
+		Type_stdout,
+		Type_exec,
+	} type;
 	std::string str;
 };
 typedef std::vector<Action> Actions;
@@ -134,13 +140,24 @@ class Settings {
 		void load(const std::string& path);
 };
 
+static void add_actions_type(const boost::property_tree::ptree& pt,
+	Actions& actions, std::string&& type_name, Action::Type type)
+{
+	auto found = pt.equal_range(std::move(type_name));
+	for (auto it = found.first; it != found.second; ++it ) {
+		Action action;
+		action.type = type;
+		action.str = it->second.data();
+		actions.push_back(std::move(action));
+	}
+}
+
 static void add_actions(const boost::property_tree::ptree& pt, Actions& actions)
 {
 	auto found_actions = pt.equal_range("actions");
 	for (auto it = found_actions.first; it != found_actions.second; ++it ) {
-		Action action;
-		action.str = it->second.get<std::string>("stdout", "");
-		actions.push_back(std::move(action));
+		add_actions_type(it->second, actions, "stdout", Action::Type_stdout);
+		add_actions_type(it->second, actions, "exec", Action::Type_exec);
 	}
 }
 
@@ -265,24 +282,43 @@ static void parse_link(const nlmsghdr* hdr, EventLink& evt)
 	}
 }
 
-static void do_link_action(const EventLink& evt, const std::string& etype, const Action& action)
+std::string build_link_string(const EventLink& evt, const std::string& s, const std::string& etype)
 {
-	if (action.str.empty())
-		return;
-	std::string msg(action.str);
-	stringReplace(msg, "%a", evt.address);
-	stringReplace(msg, "%e", std::move(etype));
-	stringReplace(msg, "%i", evt.ifname);
-	stringReplace(msg, "%o", evt.ifname_old);
-	stringReplace(msg, "%s", evt.state);
-	std::cout << msg << '\n';
+	std::string result(s);
+	stringReplace(result, "%a", evt.address);
+	stringReplace(result, "%e", etype);
+	stringReplace(result, "%i", evt.ifname);
+	stringReplace(result, "%o", evt.ifname_old);
+	stringReplace(result, "%s", evt.state);
+	return result;
+}
+
+static void do_action(const Action& action, std::string&& str)
+{
+	if (action.type == Action::Type_exec) {
+		// TODO: We (currently) don't care about what happens with the thread.
+		// That bears the problem that these threads aren't serialized.
+		// E.g. if we start a thread for a link_new event and a thread for
+		// an addr_new event, the second thread might actually run before
+		// the first.
+		std::thread t([](std::string&& s){
+			int unused __attribute__((unused));
+			unused = std::system(s.c_str());
+		}, std::move(str));
+		t.detach();
+	} else // if (action.type == Action::Type_stdout)
+		std::cout << std::move(str) << '\n';
 }
 
 static void do_link_actions(const EventLink& evt, const std::string& etype, const Actions& actions)
 {
 	auto end = actions.cend();
-	for (auto i = actions.cbegin(); i != end; ++i)
-		do_link_action(evt, etype, *i);
+	for (auto i = actions.cbegin(); i != end; ++i) {
+		if (i->str.empty())
+			continue;
+		std::string str(build_link_string(evt, i->str, etype));
+		do_action(*i, std::move(str));
+	}
 }
 
 static bool is_empty_or_matches(const boost::regex& e, const std::string& s)
@@ -379,24 +415,26 @@ static void parse_addr(const nlmsghdr* hdr, EventAddr& evt)
 	}
 }
 
-static void do_addr_action(const EventAddr& evt, const std::string& etype, const Action& action)
+std::string build_addr_string(const EventAddr& evt, const std::string& s, const std::string& etype)
 {
-	if (action.str.empty())
-		return;
-	std::string msg(action.str);
-	stringReplace(msg, "%a", evt.address);
-	stringReplace(msg, "%b", evt.broadcast);
-	stringReplace(msg, "%e", std::move(etype));
-	stringReplace(msg, "%i", evt.ifname);
-	stringReplace(msg, "%t", (evt.type_v6 ? "v6" : "v4"));
-	std::cout << msg << '\n';
+	std::string result(s);
+	stringReplace(result, "%a", evt.address);
+	stringReplace(result, "%b", evt.broadcast);
+	stringReplace(result, "%e", etype);
+	stringReplace(result, "%i", evt.ifname);
+	stringReplace(result, "%t", (evt.type_v6 ? "v6" : "v4"));
+	return result;
 }
 
 static void do_addr_actions(const EventAddr& evt, const std::string& etype, const Actions& actions)
 {
 	auto end = actions.cend();
-	for (auto i = actions.cbegin(); i != end; ++i)
-		do_addr_action(evt, etype, *i);
+	for (auto i = actions.cbegin(); i != end; ++i) {
+		if (i->str.empty())
+			continue;
+		std::string str(build_addr_string(evt, i->str, etype));
+		do_action(*i, std::move(str));
+	}
 }
 
 static bool filter_matches(const EventAddr& evt, const FilterAddress& filter)

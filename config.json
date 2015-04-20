@@ -40,7 +40,8 @@
 			}
 		},
 		"actions": {
-			"stdout": "link_new e:'%e' i:'%i' o:'%o' a:'%a' s:'%s'"
+			"stdout": "link_new e:'%e' i:'%i' o:'%o' a:'%a' s:'%s'",
+			"exec": "echo \"new link e:'%e' i:'%i' o:'%o' a:'%a' s:'%s'\""
 		}
 	},
 	"link_del": {
@@ -81,7 +82,8 @@
 			}
 		},
 		"actions": {
-			"stdout": "addr_new e:'%e' i:'%i' t:'%t' a:'%a' b:'%b'"
+			"stdout": "addr_new e:'%e' i:'%i' t:'%t' a:'%a' b:'%b'",
+			"exec": "echo \"new addr e:'%e' i:'%i' t:'%t' a:'%a' b:'%b'\""
 		}
 	},
 	"addr_del": {
