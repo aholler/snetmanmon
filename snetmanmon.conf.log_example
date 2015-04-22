@@ -1,0 +1,81 @@
+{
+
+// Example how to log events to syslog.
+
+"link_new_for_existing_links": "1", // default false/0
+"addr_new_for_existing_addresses": "true",
+
+"events": {
+	"link_new": {
+		"filter": {
+			"ifname_old": "^$", // empty => if not renamed
+			"address": "^$", // some interfaces like the loopback don't have a MAC
+			"actions": {
+				"exec_seq": "logger \"New or changed interface '%i' (status %s)\""
+			}
+		},
+		"filter": {
+			"ifname_old": "^$",
+			"address": ".+",
+			"actions": {
+				"exec_seq": "logger \"New or changed interface '%i' (MAC %a, status %s)\""
+			}
+		},
+		"filter": {
+			"ifname_old": ".+", // not empty => if renamed
+			"address": "^$",
+			"actions": {
+				"exec_seq": "logger \"Interface '%o' was renamed to '%i' (status %s)\""
+			}
+		},
+		"filter": {
+			"ifname_old": ".+",
+			"address": ".+", // require a MAC
+			"actions": {
+				"exec_seq": "logger \"Interface '%o' was renamed to '%i' (MAC %a, status %s)\""
+			}
+		}
+	},
+	"link_del": {
+		"actions": {
+			"exec_seq": "logger \"Interface '%i'\" was deleted"
+		}
+	},
+	"addr_new": {
+		"filter": {
+			"type": "v4",
+			"broadcast": ".+",
+			"actions": {
+				"exec_seq": "logger \"New IPv4 %a on interface '%i' (broadcast %b)\""
+			}
+		},
+		"filter": {
+			"type": "v4",
+			"broadcast": "^$",
+			"actions": {
+				"exec_seq": "logger \"New IPv4 %a on interface '%i'\""
+			}
+		},
+		"filter": {
+			"type": "v6",
+			"actions": {
+				"exec_seq": "logger \"New IPv6 %a on interface '%i'\""
+			}
+		}
+	},
+	"addr_del": {
+		"filter": {
+			"type": "v4",
+			"actions": {
+				"exec_seq": "logger \"IPv4 %a on interface '%i' was deleted\""
+			}
+		},
+		"filter": {
+			"type": "v6",
+			"actions": {
+				"exec_seq": "logger \"IPv6 %a on interface '%i' was deleted\""
+			}
+		}
+	}
+} // events
+}

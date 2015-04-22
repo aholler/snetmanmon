@@ -1,0 +1,30 @@
+{
+
+// Simple example which just outputs some message to stdout.
+
+"link_new_for_existing_links": "1", // default false/0
+"addr_new_for_existing_addresses": "true",
+
+"events": {
+	"link_new": {
+		"actions": {
+			"stdout": "e:'%e' i:'%i' o:'%o' a:'%a' s:'%s'"
+		}
+	},
+	"link_del": {
+		"actions": {
+			"stdout": "e:'%e' i:'%i' o:'%o' a:'%a' s:'%s'"
+		}
+	},
+	"addr_new": {
+		"actions": {
+			"stdout": "e:'%e' i:'%i' t:'%t' a:'%a' b:'%b'"
+		}
+	},
+	"addr_del": {
+		"actions": {
+			"stdout": "e:'%e' i:'%i' t:'%t' a:'%a' b:'%b'"
+		}
+	}
+} // events
+}

@@ -1,0 +1,85 @@
+{
+
+// Example how to log events to the kernel ring buffer (man dmesg).
+// On a typical system these messages are logged to syslog too.
+
+// Because /dev/kmsg is usually only writable by root,
+// snetmanmon needs to run as root for this to work.
+
+"link_new_for_existing_links": "1", // default false/0
+"addr_new_for_existing_addresses": "true",
+
+"events": {
+	"link_new": {
+		"filter": {
+			"ifname_old": "^$", // empty => if not renamed
+			"address": "^$", // some interfaces like the loopback don't have a MAC
+			"actions": {
+				"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: New or changed interface '%i' (status %s)\""
+			}
+		},
+		"filter": {
+			"ifname_old": "^$",
+			"address": ".+",
+			"actions": {
+				"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: New or changed interface '%i' (MAC %a, status %s)\""
+			}
+		},
+		"filter": {
+			"ifname_old": ".+", // not empty => if renamed
+			"address": "^$",
+			"actions": {
+				"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: Interface '%o' was renamed to '%i' (status %s)\""
+			}
+		},
+		"filter": {
+			"ifname_old": ".+",
+			"address": ".+", // require a MAC
+			"actions": {
+				"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: Interface '%o' was renamed to '%i' (MAC %a, status %s)\""
+			}
+		}
+	},
+	"link_del": {
+		"actions": {
+			"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: Interface '%i' was deleted\""
+		}
+	},
+	"addr_new": {
+		"filter": {
+			"type": "v4",
+			"broadcast": ".+",
+			"actions": {
+				"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: New IPv4 %a on interface '%i' (broadcast %b)\""
+			}
+		},
+		"filter": {
+			"type": "v4",
+			"broadcast": "^$",
+			"actions": {
+				"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: New IPv4 %a on interface '%i'\""
+			}
+		},
+		"filter": {
+			"type": "v6",
+			"actions": {
+				"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: New IPv6 %a on interface '%i'\""
+			}
+		}
+	},
+	"addr_del": {
+		"filter": {
+			"type": "v4",
+			"actions": {
+				"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: IPv4 %a on interface '%i'\" was deleted"
+			}
+		},
+		"filter": {
+			"type": "v6",
+			"actions": {
+				"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: IPv6 %a on interface '%i'\" was deleted"
+			}
+		}
+	}
+} // events
+}
