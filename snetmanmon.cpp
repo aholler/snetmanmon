@@ -20,6 +20,7 @@
 #include <netinet/ether.h> // ether_ntoa
 #include <ifaddrs.h>
 
+#include "SafeQueue.hpp"
 #include "boost_asio_netlink_route.hpp"
 #include "version.h"
 
@@ -98,6 +99,7 @@ struct Action
 	enum Type {
 		Type_stdout,
 		Type_exec,
+		Type_exec_seq,
 	} type;
 	std::string str;
 };
@@ -160,6 +162,7 @@ static void add_actions(const boost::property_tree::ptree& pt, Actions& actions)
 	for (auto it = found_actions.first; it != found_actions.second; ++it ) {
 		add_actions_type(it->second, actions, "stdout", Action::Type_stdout);
 		add_actions_type(it->second, actions, "exec", Action::Type_exec);
+		add_actions_type(it->second, actions, "exec_seq", Action::Type_exec_seq);
 	}
 }
 
@@ -298,19 +301,32 @@ std::string build_link_string(const EventLink& evt, const std::string& s, const 
 	return result;
 }
 
+typedef SafeQueue<std::string> QueueStrings;
+static QueueStrings queue_execs;
+static std::thread exec_thread;
+
 static void do_action(const Action& action, std::string&& str)
 {
+	assert(!str.empty());
 	if (action.type == Action::Type_exec) {
-		// TODO: We (currently) don't care about what happens with the thread.
-		// That bears the problem that these threads aren't serialized.
-		// E.g. if we start a thread for a link_new event and a thread for
-		// an addr_new event, the second thread might actually run before
-		// the first.
 		std::thread t([](std::string&& s){
 			int unused __attribute__((unused));
 			unused = std::system(s.c_str());
 		}, std::move(str));
 		t.detach();
+	} else if (action.type == Action::Type_exec_seq) {
+		queue_execs.enqueue(std::move(str));
+		if (!exec_thread.joinable()) {
+			exec_thread = std::thread([](){
+				for (;;) {
+					std::string s(queue_execs.dequeue());
+					if (s.empty())
+						return;
+					int unused __attribute__((unused));
+					unused = std::system(s.c_str());
+				}
+			});
+		}
 	} else // if (action.type == Action::Type_stdout)
 		std::cout << std::move(str) << '\n';
 }

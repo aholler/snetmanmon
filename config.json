@@ -46,7 +46,26 @@
 		},
 		"actions": {
 			"stdout": "link_new e:'%e' i:'%i' o:'%o' a:'%a' s:'%s'",
+
+			// Actions of type exec_seq are serialized. That means they
+			// always should end quickly, because subsequent actions of
+			// type exec_seq will only run after execution of the previous
+			// action has ended.
+			// If possible, always use actions of type exec_seq instead of exec.
+			"exec_seq": "echo \"new link1 e:'%e' i:'%i' o:'%o' a:'%a' s:'%s'\"",
+			"exec_seq": "echo \"new link2 e:'%e' i:'%i' o:'%o' a:'%a' s:'%s'\"",
+
+			// Actions of type exec are always running in their own thread.
+			// This means they aren't serialized and can block or run
+			// as long as snetmanmon runs.
+			// Be aware that killing snetmanmon doesn't kill these threads,
+			// so you should always make sure that they will end on their
+			// own.
 			"exec": "echo \"new link e:'%e' i:'%i' o:'%o' a:'%a' s:'%s'\""
+			// For example, below is a bad action which will print its PID
+			// and never stops (which should not happen). You might use
+			// it to try out what happens if you kill snetmanmon.
+			//"exec": "while :; do echo $$; sleep 1; done"
 		}
 	},
 	"link_del": {
@@ -88,7 +107,7 @@
 		},
 		"actions": {
 			"stdout": "addr_new e:'%e' i:'%i' t:'%t' a:'%a' b:'%b'",
-			"exec": "echo \"new addr e:'%e' i:'%i' t:'%t' a:'%a' b:'%b'\""
+			"exec_seq": "echo \"new addr e:'%e' i:'%i' t:'%t' a:'%a' b:'%b'\""
 		}
 	},
 	"addr_del": {
