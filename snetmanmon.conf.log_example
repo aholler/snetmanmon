@@ -12,28 +12,28 @@
 			"ifname_old": "^$", // empty => if not renamed
 			"address": "^$", // some interfaces like the loopback don't have a MAC
 			"actions": {
-				"exec_seq": "logger \"New or changed interface '%i' (status %s)\""
+				"exec_seq": "logger \"New or changed interface '%i' (state %s)\""
 			}
 		},
 		"filter": {
 			"ifname_old": "^$",
 			"address": ".+",
 			"actions": {
-				"exec_seq": "logger \"New or changed interface '%i' (MAC %a, status %s)\""
+				"exec_seq": "logger \"New or changed interface '%i' (MAC %a, state %s)\""
 			}
 		},
 		"filter": {
 			"ifname_old": ".+", // not empty => if renamed
 			"address": "^$",
 			"actions": {
-				"exec_seq": "logger \"Interface '%o' was renamed to '%i' (status %s)\""
+				"exec_seq": "logger \"Interface '%o' was renamed to '%i' (state %s)\""
 			}
 		},
 		"filter": {
 			"ifname_old": ".+",
 			"address": ".+", // require a MAC
 			"actions": {
-				"exec_seq": "logger \"Interface '%o' was renamed to '%i' (MAC %a, status %s)\""
+				"exec_seq": "logger \"Interface '%o' was renamed to '%i' (MAC %a, state %s)\""
 			}
 		}
 	},
