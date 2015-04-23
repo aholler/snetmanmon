@@ -1,11 +1,63 @@
 snetmanmon
 
-// A simple network manager and monitor for Linux
+A simple network manager and monitor for Linux
 
 (C) 2015 Alexander Holler
 
+See the file LICENSE for the license.
 
-To build snetmanmon call
 
-cmake -DCMAKE_BUILD_TYPE=release
-make
+snetmanmon is a simple alternative to ifupdown, ifplugd, networkmanager,
+connman and similiar tools, which all lacked some functionality I wanted.
+
+
+In particular it makes it possible to not only react on (dis)appearing
+interfaces, but also on (dis)appearing IPs.
+
+Furthermore it's a tool to keep track (logging) of changes in regard
+to interfaces and IP addresses on a machine. Something which becomes
+more important in times of virtual machines, containers and
+software-defined networking (SDN) and which isn't supported by the
+tools above.
+
+That means if you want to log the (dis)appearance of interfaces and
+IP addresses on your machine, this tool might be your choice.
+
+But it also gives the possibility to do almost anything else if
+a network interface or an IP (dis)appears. E.g. if you want to
+start a DHCP-client if a WLAN dongle with a MAC a:b:c:d:e:f will be
+attached to your system and furthermore you want to start a
+NTP-client only if the IP i.j.k.m (or i::*) appears on interface
+ethN, this is easy possible to do with snetmanmon too.
+
+Why is it called simple? Because it almost doesn't do any actions
+itself. E.g. It doesn't configure network interfaces nor does it
+do DHCP by itself, but instead relies on whatever tool the users
+prefers to accomplish such actions.
+
+
+To build snetmanmon, call
+
+	cmake -DCMAKE_BUILD_TYPE=release
+	make
+
+Afterwards you just can call it with
+
+	./snetmanmon snetmanmon.conf.simple_example
+
+to test it (no special privileges are needed and nothing else will
+be executed).
+
+
+If you're missing features or want support, please keep in mind that
+the author built snetmanmon only to fulfill his own needs and that
+he doesn't care much for anything else if it isn't payed.
+
+
+PS: If you're working for Google or if you are a Google employee,
+and you want to use this tool, please give the autor a call so that
+he can make a quiz (have some fun) *with you* in order to test if
+you qualify as an user.
+The idea was actually to add this as an exception to the license, but
+unfortunately that would disqualify the license in regard to some
+rules for open source licenses.
