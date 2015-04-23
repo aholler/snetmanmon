@@ -141,6 +141,7 @@ class Settings {
 		FiltersAddress filters_addr_del;
 		bool link_new_for_existing_links;
 		bool addr_new_for_existing_addresses;
+		std::string pid_file;
 		void load(const std::string& path);
 };
 
@@ -217,6 +218,7 @@ void Settings::load(const std::string& path)
 
 	link_new_for_existing_links = pt.get<bool>("link_new_for_existing_links", false);
 	addr_new_for_existing_addresses = pt.get<bool>("addr_new_for_existing_addresses", false);
+	pid_file = pt.get<std::string>("pid_file", "");
 	boost::property_tree::ptree& events(pt.get_child("events"));
 	add_link_events(events, "link_new", actions_link_new, filters_link_new);
 	add_link_events(events, "link_del", actions_link_del, filters_link_del);
@@ -647,6 +649,13 @@ public:
 	}
 };
 
+void del_pid_file(void)
+{
+	if (!settings.pid_file.empty())
+		if (::unlink(settings.pid_file.c_str()))
+			std::cerr << "Error deleting pid file '" << settings.pid_file << "'\n";
+}
+
 void sighup(const boost::system::error_code&, int)
 {
 	print_ifs();
@@ -669,6 +678,19 @@ int main(int argc, char* argv[])
 		return 2;
 	}
 
+	if (!settings.pid_file.empty()) {
+		std::ofstream pid;
+		pid.exceptions( std::ofstream::failbit | std::ofstream::badbit );
+		try {
+			pid.open(settings.pid_file);
+			pid << ::getpid() << std::endl;
+			pid.close();
+		} catch(const std::exception& e) {
+			std::cerr << "Error writing pid file '" << settings.pid_file << "'!\n";
+			return 3;
+		}
+	}
+
 	boost::asio::io_service io_service;
 
 	boost::asio::signal_set signals_term(io_service, SIGTERM, SIGINT, SIGQUIT);
@@ -682,13 +704,16 @@ int main(int argc, char* argv[])
 		io_service.run();
 	} catch(const std::exception& e) {
 		std::cerr << "Exception: " << e.what() << "\n";
-		return 3;
+		del_pid_file();
+		return 4;
 	}
 
 	if (exec_thread.joinable()) {
 		queue_execs.enqueue(std::string());
 		exec_thread.join();
 	}
+
+	del_pid_file();
 
 	return 0;
 }

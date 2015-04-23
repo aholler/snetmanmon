@@ -4,6 +4,7 @@
 
 "link_new_for_existing_links": "1", // default false/0
 "addr_new_for_existing_addresses": "true",
+"pid_file": "/tmp/snetmanmon.pid",
 
 "events": {
 	"link_new": {
