@@ -598,14 +598,58 @@ static void populate_ifs(void)
 	freeifaddrs(ifaddr);
 }
 
-static void (*old_signal_handler)(int) = nullptr;
-
-void sig_handler(int signal)
+class netlink_route_client
 {
-	// There should be a lock here, but it's currently just a debug facility.
+private:
+	void receive(void) {
+		socket_.async_receive_from(
+			boost::asio::buffer(data_, max_length), sender_endpoint_,
+				boost::bind(&netlink_route_client::handle_receive_from, this,
+					boost::asio::placeholders::error,
+					boost::asio::placeholders::bytes_transferred));
+	}
+	boost::asio::io_service& io_service_;
+	boost::asio::netlink::route::socket socket_;
+	boost::asio::netlink::route::endpoint sender_endpoint_;
+	enum { max_length = 4096 };
+	char data_[max_length];
+
+public:
+	netlink_route_client(boost::asio::io_service& io_service)
+		: io_service_(io_service)
+		, socket_(io_service, boost::asio::netlink::route::endpoint(
+			RTMGRP_LINK | RTMGRP_IPV4_IFADDR | RTMGRP_IPV6_IFADDR))
+	{
+		receive();
+		populate_ifs();
+	}
+
+	void handle_receive_from(const boost::system::error_code& error, size_t bytes_recvd) {
+		const nlmsghdr* hdr = reinterpret_cast<const nlmsghdr*>(data_);
+		if (!error && bytes_recvd && !sender_endpoint_.pid() && NLMSG_OK(hdr, bytes_recvd))
+			switch (hdr->nlmsg_type) {
+			case RTM_NEWLINK:
+				link_new(hdr);
+				break;
+			case RTM_DELLINK:
+				link_del(hdr);
+				break;
+			case RTM_NEWADDR:
+				addr_new(hdr);
+				break;
+			case RTM_DELADDR:
+				addr_del(hdr);
+				break;
+			default:
+				break;
+			}
+		receive();
+	}
+};
+
+void sighup(const boost::system::error_code&, int)
+{
 	print_ifs();
-        if (old_signal_handler != nullptr)
-                old_signal_handler(signal);
 }
 
 int main(int argc, char* argv[])
@@ -618,8 +662,6 @@ int main(int argc, char* argv[])
 		return 1;
 	}
 
-	old_signal_handler = std::signal(SIGHUP, sig_handler); // catch SIGHUP
-
 	try {
 		settings.load(argv[1]);
 	} catch(const std::exception& e) {
@@ -627,44 +669,26 @@ int main(int argc, char* argv[])
 		return 2;
 	}
 
-	// TODO: we should populate the cache after we started to listen
-	// for events, in order to not miss something.
-	populate_ifs();
-
 	boost::asio::io_service io_service;
-	boost::system::error_code ec;
-	boost::asio::netlink::route::socket socket(io_service);
-	boost::asio::netlink::route::endpoint endpoint(
-		RTMGRP_LINK | RTMGRP_IPV4_IFADDR | RTMGRP_IPV6_IFADDR);
-	socket.open();
-	socket.bind(endpoint);
-	std::array<char, 4096> recv_buf;
-	for (;;) {
-		boost::asio::netlink::route::endpoint endpoint_rcv;
-		size_t len = socket.receive_from(boost::asio::buffer(recv_buf), endpoint_rcv);
-		if (endpoint_rcv.pid())
-			continue; // not from kernel
-		const nlmsghdr* hdr = reinterpret_cast<const nlmsghdr*>(recv_buf.data());
-		if (!NLMSG_OK(hdr, len)) {
-			std::cerr << "Received broken netlink msg!\n";
-			continue;
-		}
-		switch (hdr->nlmsg_type) {
-		case RTM_NEWLINK:
-			link_new(hdr);
-			break;
-		case RTM_DELLINK:
-			link_del(hdr);
-			break;
-		case RTM_NEWADDR:
-			addr_new(hdr);
-			break;
-		case RTM_DELADDR:
-			addr_del(hdr);
-			break;
-		default:
-			break;
-		}
+
+	boost::asio::signal_set signals_term(io_service, SIGTERM, SIGINT, SIGQUIT);
+	signals_term.async_wait(boost::bind(&boost::asio::io_service::stop, &io_service));
+	boost::asio::signal_set signal_hup(io_service, SIGHUP);
+	signal_hup.async_wait(sighup);
+
+	netlink_route_client nrc(io_service);
+
+	try {
+		io_service.run();
+	} catch(const std::exception& e) {
+		std::cerr << "Exception: " << e.what() << "\n";
+		return 3;
 	}
+
+	if (exec_thread.joinable()) {
+		queue_execs.enqueue(std::string());
+		exec_thread.join();
+	}
+
 	return 0;
 }
