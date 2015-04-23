@@ -26,7 +26,23 @@
 
 typedef std::set<boost::asio::ip::address> SetIps;
 typedef std::map<unsigned, SetIps> Map_idx_addrs;
-typedef std::map<unsigned, std::string> Map_idx_if;
+
+class Link
+{
+	public:
+		Link(std::string&& i, std::string&& s)
+			: ifname(std::move(i))
+			, state(std::move(s))
+		{}
+		Link(const std::string& i, const std::string& s)
+			: ifname(i)
+			, state(s)
+		{}
+		std::string ifname;
+		std::string state;
+};
+
+typedef std::map<unsigned, Link> Map_idx_if;
 
 static Map_idx_addrs map_idx_addrs;
 static Map_idx_if map_idx_if;
@@ -35,7 +51,7 @@ static void print_ifs(void)
 {
 	auto end = map_idx_if.cend();
 	for (auto i = map_idx_if.cbegin(); i != end; ++i)
-		std::cout << "idx " << i->first << " if '" << i->second << "'\n";
+		std::cout << "idx " << i->first << " if '" << i->second.ifname << "' state '" << i->second.state << "'\n";
 	auto end_ifs = map_idx_addrs.cend();
 	for (auto i = map_idx_addrs.cbegin(); i != end_ifs; ++i) {
     		std::cout << "idx " << i->first << "\n";
@@ -379,11 +395,15 @@ static void link_new(const nlmsghdr* hdr)
 
 	unsigned idx = static_cast<const ifinfomsg*>(NLMSG_DATA(hdr))->ifi_index;
 	map_idx_addrs.insert(std::pair<unsigned, SetIps>(idx, SetIps()));
-	auto inserted = map_idx_if.insert(std::pair<unsigned, std::string>(idx, evt.ifname));
-	if (!inserted.second && inserted.first != map_idx_if.cend() && evt.ifname != inserted.first->second) {
-		// if got renamed
-		evt.ifname_old = inserted.first->second;
-		inserted.first->second = evt.ifname;
+	Link link(evt.ifname, evt.state);
+	auto inserted = map_idx_if.insert(std::pair<unsigned, Link>(idx, link));
+	if (!inserted.second && inserted.first != map_idx_if.cend()) {
+		if (evt.ifname == inserted.first->second.ifname && evt.state == inserted.first->second.state)
+			return;
+		else if (evt.ifname != inserted.first->second.ifname)
+			// if got renamed
+			evt.ifname_old = inserted.first->second.ifname;
+		inserted.first->second = link;
 	}
 	do_link_actions(evt, "link_new", settings.actions_link_new);
 	do_link_filters(evt, "link_new", settings.filters_link_new);
@@ -416,7 +436,7 @@ static void parse_addr(const nlmsghdr* hdr, EventAddr& evt)
 	if (evt.ifname.empty()) {
 		auto found = map_idx_if.find(msg->ifa_index);
 		if (found != map_idx_if.end())
-			evt.ifname = found->second;
+			evt.ifname = found->second.ifname;
 	}
 	for (const rtattr* attr = IFA_RTA(msg); RTA_OK(attr, bytes);
 					attr = RTA_NEXT(attr, bytes)) {
@@ -573,7 +593,11 @@ static void populate_ifs(void)
 		unsigned idx = if_nametoindex(ifa->ifa_name);
 		if (!idx)
 			continue;
-		auto if_inserted = map_idx_if.insert(std::pair<unsigned, std::string>(idx, ifa->ifa_name));
+		std::string state("up");
+		if (!(ifa->ifa_flags & IFF_UP))
+			state = "down";
+		Link link(ifa->ifa_name, std::move(state));
+		auto if_inserted = map_idx_if.insert(std::pair<unsigned, Link>(idx, link));
 		if (if_inserted.second && settings.link_new_for_existing_links)
 			generate_evt_link(ifa);
 		if (ifa->ifa_addr == nullptr)
