@@ -101,6 +101,7 @@ class EventLink : public Event
 	public:
 		std::string state; // up, down or unknown
 		std::string ifname_old;
+		std::string state_old;
 };
 
 class EventAddr : public Event
@@ -134,6 +135,7 @@ class FilterLink: public Filter
 	public:
 		boost::regex ifname_old;
 		boost::regex state;
+		boost::regex state_old;
 };
 typedef std::vector<FilterLink> FiltersLink;
 
@@ -203,6 +205,7 @@ static void add_link_events(const boost::property_tree::ptree& pt, std::string&&
 			add_regex(itf, "address", filter.address);
 			add_regex(itf, "state", filter.state);
 			add_regex(itf, "ifname_old", filter.ifname_old);
+			add_regex(itf, "state_old", filter.state_old);
 			add_actions(itf->second, filter.actions);
 			filters_link.push_back(std::move(filter));
 		}
@@ -330,6 +333,7 @@ std::string build_link_string(const EventLink& evt, const std::string& s, const 
 	stringReplace(result, "%i", evt.ifname);
 	stringReplace(result, "%o", evt.ifname_old);
 	stringReplace(result, "%s", evt.state);
+	stringReplace(result, "%S", evt.state_old);
 	return result;
 }
 
@@ -391,6 +395,8 @@ static bool filter_matches(const EventLink& evt, const FilterLink& filter)
 		return false;
 	if (!is_empty_or_matches(filter.state, evt.state))
 		return false;
+	if (!is_empty_or_matches(filter.state_old, evt.state_old))
+		return false;
 	return true;
 }
 
@@ -414,9 +420,12 @@ static void link_new(const nlmsghdr* hdr)
 	if (!inserted.second && inserted.first != map_idx_if.cend()) {
 		if (evt.ifname == inserted.first->second.ifname && evt.state == inserted.first->second.state)
 			return;
-		else if (evt.ifname != inserted.first->second.ifname)
+		if (evt.ifname != inserted.first->second.ifname)
 			// if got renamed
 			evt.ifname_old = inserted.first->second.ifname;
+		if (evt.state != inserted.first->second.state)
+			// status changed
+			evt.state_old = inserted.first->second.state;
 		inserted.first->second = link;
 	}
 	do_link_actions(evt, "link_new", settings.actions_link_new);

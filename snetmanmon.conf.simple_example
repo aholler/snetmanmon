@@ -8,12 +8,12 @@
 "events": {
 	"link_new": {
 		"actions": {
-			"stdout": "e:'%e' i:'%i' o:'%o' a:'%a' s:'%s'"
+			"stdout": "e:'%e' i:'%i' o:'%o' a:'%a' s:'%s' S:'%S'"
 		}
 	},
 	"link_del": {
 		"actions": {
-			"stdout": "e:'%e' i:'%i' o:'%o' a:'%a' s:'%s'"
+			"stdout": "e:'%e' i:'%i' o:'%o' a:'%a' s:'%s' S:'%S'"
 		}
 	},
 	"addr_new": {
