@@ -331,7 +331,7 @@ std::string build_link_string(const EventLink& evt, const std::string& s, const 
 	stringReplace(result, "%a", evt.address);
 	stringReplace(result, "%e", etype);
 	stringReplace(result, "%i", evt.ifname);
-	stringReplace(result, "%o", evt.ifname_old);
+	stringReplace(result, "%I", evt.ifname_old);
 	stringReplace(result, "%s", evt.state);
 	stringReplace(result, "%S", evt.state_old);
 	return result;

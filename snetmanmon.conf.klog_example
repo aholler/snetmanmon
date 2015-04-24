@@ -30,14 +30,14 @@
 			"ifname_old": ".+", // not empty => if renamed
 			"address": "^$",
 			"actions": {
-				"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: Interface '%o' was renamed to '%i' (state %s, old state %S)\""
+				"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: Interface '%I' was renamed to '%i' (state %s, old state %S)\""
 			}
 		},
 		"filter": {
 			"ifname_old": ".+",
 			"address": ".+", // require a MAC
 			"actions": {
-				"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: Interface '%o' was renamed to '%i' (MAC %a, state %s, old state %S)\""
+				"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: Interface '%I' was renamed to '%i' (MAC %a, state %s, old state %S)\""
 			}
 		}
 	},
