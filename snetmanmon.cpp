@@ -17,7 +17,7 @@
 #include <boost/property_tree/json_parser.hpp>
 #include <boost/regex.hpp>
 
-#include <netinet/ether.h> // ether_ntoa
+#include <netinet/ether.h> // ether_addr
 #include <ifaddrs.h>
 
 #include "SafeQueue.hpp"
@@ -253,12 +253,26 @@ static void stringReplace(std::string& str, std::string&& what, const std::strin
 	}
 }
 
+static std::string mac2str(const unsigned char* mac)
+{
+	std::ostringstream os;
+	os << std::setfill('0') << std::hex <<
+		std::setw(2) << (unsigned)mac[0] << ':' << std::setw(2) << (unsigned)mac[1] << ':' <<
+		std::setw(2) << (unsigned)mac[2] << ':' << std::setw(2) << (unsigned)mac[3] << ':' <<
+		std::setw(2) << (unsigned)mac[4] << ':' << std::setw(2) << (unsigned)mac[5];
+        return os.str();
+}
+static std::string mac2str(const ether_addr* mac)
+{
+	return mac2str(mac->ether_addr_octet);
+}
+
 static std::string ether2str(const rtattr* attr)
 {
 	int len = (int) RTA_PAYLOAD(attr);
 	if (len != ETH_ALEN)
 		return "";
-	return ether_ntoa(static_cast<const ether_addr*>(RTA_DATA(attr)));
+	return mac2str(static_cast<const ether_addr*>(RTA_DATA(attr)));
 }
 
 static std::string inet2str(const rtattr* attr, unsigned char family)
@@ -545,13 +559,7 @@ std::string get_eth_addr(ifaddrs* ifa)
 		return "";
 	if (ifr.ifr_hwaddr.sa_family != ARPHRD_ETHER)
 		return "";
-	const unsigned char* mac = reinterpret_cast<const unsigned char*>(ifr.ifr_hwaddr.sa_data);
-	std::ostringstream os;
-	os << std::setfill('0') << std::hex <<
-		std::setw(2) << (unsigned)mac[0] << ':' << std::setw(2) << (unsigned)mac[1] << ':' <<
-		std::setw(2) << (unsigned)mac[2] << ':' << std::setw(2) << (unsigned)mac[3] << ':' <<
-		std::setw(2) << (unsigned)mac[4] << ':' << std::setw(2) << (unsigned)mac[5];
-        return os.str();
+	return mac2str(reinterpret_cast<const unsigned char*>(ifr.ifr_hwaddr.sa_data));
 }
 
 static void generate_evt_link(ifaddrs* ifa)
