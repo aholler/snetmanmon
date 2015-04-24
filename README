@@ -28,12 +28,16 @@ a network interface or an IP (dis)appears. E.g. if you want to
 start a DHCP-client if a WLAN dongle with a MAC a:b:c:d:e:f will be
 attached to your system and furthermore you want to start a
 NTP-client only if the IP i.j.k.m (or i::*) appears on interface
-ethN, this is easy possible to do with snetmanmon too.
+ethN, this is easy possible to do with snetmanmon too. In short,
+if you have a ThingOfInternets (ToI) instead of an IoT,
+snetmanmon might be the right tool too.
 
 Why is it called simple? Because it almost doesn't do any actions
 itself. E.g. It doesn't configure network interfaces nor does it
 do DHCP by itself, but instead relies on whatever tool the users
-prefers to accomplish such actions.
+prefers to accomplish such actions. This is in line with the old
+comcept on Unix systems of "Do One Thing and Do It Well". So,
+hopefully, snetmanmon does it well too.
 
 
 To build snetmanmon, call
