@@ -677,6 +677,11 @@ public:
 		, socket_(io_service, boost::asio::netlink::route::endpoint(
 			RTMGRP_LINK | RTMGRP_IPV4_IFADDR | RTMGRP_IPV6_IFADDR))
 	{
+		// It would be better to use SOCK_CLOEXEC when opening the
+		// socket, but as we are still single threaded here, it
+		// should be ok.
+		if (::fcntl(socket_.native_handle(), F_SETFD, FD_CLOEXEC))
+			std::cerr << strerror(errno) << '\n';
 		receive();
 		populate_ifs();
 	}
