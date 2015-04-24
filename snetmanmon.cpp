@@ -30,16 +30,19 @@ typedef std::map<unsigned, SetIps> Map_idx_addrs;
 class Link
 {
 	public:
-		Link(std::string&& i, std::string&& s)
+		Link(std::string&& i, std::string&& s, std::string&& a)
 			: ifname(std::move(i))
 			, state(std::move(s))
+			, address(std::move(a))
 		{}
-		Link(const std::string& i, const std::string& s)
+		Link(const std::string& i, const std::string& s, const std::string& a)
 			: ifname(i)
 			, state(s)
+			, address(a)
 		{}
 		std::string ifname;
 		std::string state;
+		std::string address; // MAC
 };
 
 typedef std::map<unsigned, Link> Map_idx_if;
@@ -51,7 +54,10 @@ static void print_ifs(void)
 {
 	auto end = map_idx_if.cend();
 	for (auto i = map_idx_if.cbegin(); i != end; ++i)
-		std::cout << "idx " << i->first << " if '" << i->second.ifname << "' state '" << i->second.state << "'\n";
+		std::cout << "idx " << i->first <<
+			" if '" << i->second.ifname <<
+			"' state '" << i->second.state <<
+			"' MAC " << i->second.address << "\n";
 	auto end_ifs = map_idx_addrs.cend();
 	for (auto i = map_idx_addrs.cbegin(); i != end_ifs; ++i) {
     		std::cout << "idx " << i->first << "\n";
@@ -102,6 +108,7 @@ class EventLink : public Event
 		std::string state; // up, down or unknown
 		std::string ifname_old;
 		std::string state_old;
+		std::string address_old;
 };
 
 class EventAddr : public Event
@@ -136,6 +143,7 @@ class FilterLink: public Filter
 		boost::regex ifname_old;
 		boost::regex state;
 		boost::regex state_old;
+		boost::regex address_old;
 };
 typedef std::vector<FilterLink> FiltersLink;
 
@@ -206,6 +214,7 @@ static void add_link_events(const boost::property_tree::ptree& pt, std::string&&
 			add_regex(itf, "state", filter.state);
 			add_regex(itf, "ifname_old", filter.ifname_old);
 			add_regex(itf, "state_old", filter.state_old);
+			add_regex(itf, "address_old", filter.address_old);
 			add_actions(itf->second, filter.actions);
 			filters_link.push_back(std::move(filter));
 		}
@@ -329,6 +338,7 @@ std::string build_link_string(const EventLink& evt, const std::string& s, const 
 {
 	std::string result(s);
 	stringReplace(result, "%a", evt.address);
+	stringReplace(result, "%A", evt.address_old);
 	stringReplace(result, "%e", etype);
 	stringReplace(result, "%i", evt.ifname);
 	stringReplace(result, "%I", evt.ifname_old);
@@ -387,9 +397,11 @@ static bool is_empty_or_matches(const boost::regex& e, const std::string& s)
 
 static bool filter_matches(const EventLink& evt, const FilterLink& filter)
 {
-	if (!is_empty_or_matches(filter.ifname, evt.ifname))
-		return false;
 	if (!is_empty_or_matches(filter.address, evt.address))
+		return false;
+	if (!is_empty_or_matches(filter.address_old, evt.address_old))
+		return false;
+	if (!is_empty_or_matches(filter.ifname, evt.ifname))
 		return false;
 	if (!is_empty_or_matches(filter.ifname_old, evt.ifname_old))
 		return false;
@@ -415,10 +427,12 @@ static void link_new(const nlmsghdr* hdr)
 
 	unsigned idx = static_cast<const ifinfomsg*>(NLMSG_DATA(hdr))->ifi_index;
 	map_idx_addrs.insert(std::pair<unsigned, SetIps>(idx, SetIps()));
-	Link link(evt.ifname, evt.state);
+	Link link(evt.ifname, evt.state, evt.address);
 	auto inserted = map_idx_if.insert(std::pair<unsigned, Link>(idx, link));
 	if (!inserted.second && inserted.first != map_idx_if.cend()) {
-		if (evt.ifname == inserted.first->second.ifname && evt.state == inserted.first->second.state)
+		if (evt.ifname == inserted.first->second.ifname &&
+				evt.state == inserted.first->second.state &&
+				evt.address == inserted.first->second.address)
 			return;
 		if (evt.ifname != inserted.first->second.ifname)
 			// if got renamed
@@ -426,6 +440,9 @@ static void link_new(const nlmsghdr* hdr)
 		if (evt.state != inserted.first->second.state)
 			// status changed
 			evt.state_old = inserted.first->second.state;
+		if (evt.address != inserted.first->second.address)
+			// MAC changed
+			evt.address_old = inserted.first->second.address;
 		inserted.first->second = link;
 	}
 	do_link_actions(evt, "link_new", settings.actions_link_new);
@@ -571,15 +588,12 @@ std::string get_eth_addr(ifaddrs* ifa)
 	return mac2str(reinterpret_cast<const unsigned char*>(ifr.ifr_hwaddr.sa_data));
 }
 
-static void generate_evt_link(ifaddrs* ifa)
+static void generate_evt_link(const Link& link)
 {
 	EventLink evt;
-	evt.ifname = ifa->ifa_name;
-	evt.address = get_eth_addr(ifa);
-	if (ifa->ifa_flags & IFF_UP)
-		evt.state = "up";
-	else
-		evt.state = "down";
+	evt.ifname = link.ifname;
+	evt.address = link.address;
+	evt.state = link.state;
 	do_link_actions(evt, "link_new", settings.actions_link_new);
 	do_link_filters(evt, "link_new", settings.filters_link_new);
 }
@@ -613,10 +627,10 @@ static void populate_ifs(void)
 		std::string state("up");
 		if (!(ifa->ifa_flags & IFF_UP))
 			state = "down";
-		Link link(ifa->ifa_name, std::move(state));
+		Link link(ifa->ifa_name, std::move(state), get_eth_addr(ifa));
 		auto if_inserted = map_idx_if.insert(std::pair<unsigned, Link>(idx, link));
 		if (if_inserted.second && settings.link_new_for_existing_links)
-			generate_evt_link(ifa);
+			generate_evt_link(link);
 		if (ifa->ifa_addr == nullptr)
 			continue;
 		int family = ifa->ifa_addr->sa_family;

@@ -22,40 +22,41 @@
 				// %i ifname
 				// %I ifname_old
 				// %a address
+				// %A address_old
 				// %s state
 				// %S state_old
-				"stdout": "link_new_filter e:'%e' i:'%i' I:'%I' a:'%a' s:'%s' S:'%S'"
+				"stdout": "link_new_filter e:'%e' i:'%i' I:'%I' a:'%a' A:'%A' s:'%s' S:'%S'"
 			}
 		},
 		"filter": {
 			"ifname_old": ".+", // regex, not empty => if renamed
 			"actions": {
-				"stdout": "link renamed e:'%e' i:'%i' I:'%I' a:'%a' s:'%s' S:'%S'"
+				"stdout": "link renamed e:'%e' i:'%i' I:'%I' a:'%a' A:'%A' s:'%s' S:'%S'"
 			}
 		},
 		"filter": {
 			"ifname_old": "^$", // regex, empty => if not renamed
 			"actions": {
-				"stdout": "link new or changed e:'%e' i:'%i' I:'%I' a:'%a' s:'%s' S:'%S'"
+				"stdout": "link new or changed e:'%e' i:'%i' I:'%I' a:'%a' A:'%A' s:'%s' S:'%S'"
 			}
 		},
 		"filter": {
 			"ifname_old": "^$",
 			"state": "unknown|up",
 			"actions": {
-				"stdout": "link unknown or up e:'%e' i:'%i' I:'%I' a:'%a' s:'%s' S:'%S'"
+				"stdout": "link unknown or up e:'%e' i:'%i' I:'%I' a:'%a' A:'%A' s:'%s' S:'%S'"
 			}
 		},
 		"actions": {
-			"stdout": "link_new e:'%e' i:'%i' I:'%I' a:'%a' s:'%s' S:'%S'",
+			"stdout": "link_new e:'%e' i:'%i' I:'%I' a:'%a' A:'%A' s:'%s' S:'%S'",
 
 			// Actions of type exec_seq are serialized. That means they
 			// always should end quickly, because subsequent actions of
 			// type exec_seq will only run after execution of the previous
 			// action has ended.
 			// If possible, always use actions of type exec_seq instead of exec.
-			"exec_seq": "echo \"new link1 e:'%e' i:'%i' I:'%I' a:'%a' s:'%s' S:'%S'\"",
-			"exec_seq": "echo \"new link2 e:'%e' i:'%i' I:'%I' a:'%a' s:'%s' S:'%S'\"",
+			"exec_seq": "echo \"new link1 e:'%e' i:'%i' I:'%I' a:'%a' A:'%A' s:'%s' S:'%S'\"",
+			"exec_seq": "echo \"new link2 e:'%e' i:'%i' I:'%I' a:'%a' A:'%A' s:'%s' S:'%S'\"",
 
 			// Actions of type exec are always running in their own thread.
 			// This means they aren't serialized and can block or run
@@ -63,7 +64,7 @@
 			// Be aware that killing snetmanmon doesn't kill these threads,
 			// so you should always make sure that they will end on their
 			// own.
-			"exec": "echo \"new link e:'%e' i:'%i' I:'%I' a:'%a' s:'%s' S:'%S'\""
+			"exec": "echo \"new link e:'%e' i:'%i' I:'%I' a:'%a' A:'%A' s:'%s' S:'%S'\""
 			// For example, below is a bad action which will print its PID
 			// and never stops (which should not happen). You might use
 			// it to try out what happens if you kill snetmanmon.
@@ -76,11 +77,11 @@
 			"address": "36:ca:63:6:b6:4d",
 			"state": "down",
 			"actions": {
-				"stdout": "link_del_filter e:'%e' i:'%i' a:'%a' s:'%s' S:'%S'"
+				"stdout": "link_del_filter e:'%e' i:'%i' a:'%a' A:'%A' s:'%s' S:'%S'"
 			}
 		},
 		"actions": {
-			"stdout": "link_del e:'%e' i:'%i' a:'%a' s:'%s' S:'%S'"
+			"stdout": "link_del e:'%e' i:'%i' a:'%a' A:'%A' s:'%s' S:'%S'"
 		}
 	},
 	"addr_new": {

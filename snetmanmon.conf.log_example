@@ -8,6 +8,13 @@
 
 "events": {
 	"link_new": {
+		// TODO: With 3 variables which can change (ifname[_old],
+		// address[_old] and state[_old]) there exist theoretically
+		// 2^3 (8) possible combinations. Lookup in the kernel or
+		// its documentation if netlink will only report one change
+		// at a time or if there can be multiple changes in one event.
+		// In other words, lookup if it's possible that more than one
+		// _old will not be empty.
 		"filter": {
 			"ifname_old": "^$", // empty => if not renamed
 			"address": "^$", // some interfaces like the loopback don't have a MAC
@@ -34,6 +41,12 @@
 			"address": ".+", // require a MAC
 			"actions": {
 				"exec_seq": "logger \"Interface '%I' was renamed to '%i' (MAC %a, state %s, old state %S)\""
+			}
+		},
+		"filter": {
+			"address_old": ".+", // not empty => MAC changed
+			"actions": {
+				"exec_seq": "logger \"snetmanmon: Interface '%i' changed MAC from %a to %A (state %s, old state %S)\""
 			}
 		}
 	},
