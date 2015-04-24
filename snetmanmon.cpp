@@ -576,7 +576,7 @@ std::string get_eth_addr(ifaddrs* ifa)
 	if (len > sizeof(ifr.ifr_name) - 1)
 		return "";
 	std::memcpy(ifr.ifr_name, ifa->ifa_name, len+1);
-	int fd = ::socket(AF_UNIX,SOCK_DGRAM, 0);
+	int fd = ::socket(AF_UNIX, SOCK_DGRAM | SOCK_CLOEXEC, 0);
 	if (fd == -1)
 		return "";
 	int rc = ::ioctl(fd, SIOCGIFHWADDR, &ifr);
