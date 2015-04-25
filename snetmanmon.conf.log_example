@@ -46,7 +46,7 @@
 		"filter": {
 			"address_old": ".+", // not empty => MAC changed
 			"actions": {
-				"exec_seq": "logger \"snetmanmon: Interface '%i' changed MAC from %a to %A (state %s, old state %S)\""
+				"exec_seq": "logger \"snetmanmon: Interface '%i' changed MAC from %A to %a (state %s, old state %S)\""
 			}
 		}
 	},
