@@ -716,15 +716,19 @@ void del_pid_file(void)
 			std::cerr << "Error deleting pid file '" << settings.pid_file << "'\n";
 }
 
+static boost::asio::signal_set* signal_usr1_p;
 static void sigusr1(const boost::system::error_code&, int)
 {
 	print_ifs();
+	signal_usr1_p->async_wait(sigusr1);
 }
 
 static std::string config;
 
+static boost::asio::signal_set* signal_hup_p;
 static void sighup(const boost::system::error_code&, int)
 {
+	signal_hup_p->async_wait(sighup);
 	Settings new_settings;
 	try {
 		new_settings.load(config);
@@ -780,8 +784,10 @@ int main(int argc, char* argv[])
 	boost::asio::signal_set signals_term(io_service, SIGTERM, SIGINT, SIGQUIT);
 	signals_term.async_wait(boost::bind(&boost::asio::io_service::stop, &io_service));
 	boost::asio::signal_set signal_hup(io_service, SIGHUP);
+	signal_hup_p = &signal_hup;
 	signal_hup.async_wait(sighup);
 	boost::asio::signal_set signal_usr1(io_service, SIGUSR1);
+	signal_usr1_p = &signal_usr1;
 	signal_usr1.async_wait(sigusr1);
 
 	netlink_route_client nrc(io_service);
