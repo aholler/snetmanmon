@@ -40,16 +40,20 @@ src_install() {
 	cat > snetmanmon.init << END
 #!/sbin/runscript
 
+extra_started_commands="reload"
+
 depend() {
 	after net
 }
 
 start() {
 	ebegin "Starting snetmanmon"
+	/usr/bin/snetmanmon -t /etc/snetmanmon.conf >/dev/null
+	local rc=\$?
 	start-stop-daemon --start --background --quiet \\
 		--pidfile /run/snetmanmon.pid \\
 		--exec /usr/bin/snetmanmon -- /etc/snetmanmon.conf
-	eend \$? "Failed to start snetmanmon"
+	eend \$rc "Failed to start snetmanmon"
 }
 
 stop() {
@@ -58,6 +62,14 @@ stop() {
 		--pidfile /run/snetmanmon.pid \\
 		--exec /usr/bin/snetmanmon
 	eend \$? "Failed to stop snetmanmon"
+}
+
+reload() {
+	ebegin "Reloading snetmanmon"
+	/usr/bin/snetmanmon -t /etc/snetmanmon.conf >/dev/null
+	local rc=\$?
+	kill -HUP \$(cat /run/snetmanmon.pid) >/dev/null 2>&1
+	eend \$rc "Failed to reload snetmanmon"
 }
 END
 	newinitd snetmanmon.init snetmanmon
