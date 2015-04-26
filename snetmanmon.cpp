@@ -334,7 +334,7 @@ static void parse_link(const nlmsghdr* hdr, EventLink& evt)
 	}
 }
 
-std::string build_link_string(const EventLink& evt, const std::string& s, const std::string& etype)
+static std::string build_link_string(const EventLink& evt, const std::string& s, const std::string& etype)
 {
 	std::string result(s);
 	stringReplace(result, "%a", evt.address);
@@ -498,7 +498,7 @@ static void parse_addr(const nlmsghdr* hdr, EventAddr& evt)
 	}
 }
 
-std::string build_addr_string(const EventAddr& evt, const std::string& s, const std::string& etype)
+static std::string build_addr_string(const EventAddr& evt, const std::string& s, const std::string& etype)
 {
 	std::string result(s);
 	stringReplace(result, "%a", evt.address);
@@ -569,7 +569,7 @@ static void addr_del(const nlmsghdr* hdr)
 	}
 }
 
-std::string get_eth_addr(ifaddrs* ifa)
+static std::string get_eth_addr(ifaddrs* ifa)
 {
 	size_t len = ::strlen(ifa->ifa_name);
 	ifreq ifr;
@@ -709,7 +709,7 @@ public:
 	}
 };
 
-void del_pid_file(void)
+static void del_pid_file(void)
 {
 	if (!settings.pid_file.empty())
 		if (::unlink(settings.pid_file.c_str()))
