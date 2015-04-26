@@ -716,9 +716,28 @@ void del_pid_file(void)
 			std::cerr << "Error deleting pid file '" << settings.pid_file << "'\n";
 }
 
-void sighup(const boost::system::error_code&, int)
+static void sigusr1(const boost::system::error_code&, int)
 {
 	print_ifs();
+}
+
+static std::string config;
+
+static void sighup(const boost::system::error_code&, int)
+{
+	Settings new_settings;
+	try {
+		new_settings.load(config);
+	} catch(const std::exception& e) {
+		std::cerr << "Error reading config '" << config << "': " << e.what() <<  ", nothing changed!\n";
+		return;
+	}
+	if (!settings.pid_file.empty() && settings.pid_file != new_settings.pid_file)
+		std::cerr << "Warning: pid_file changed to '" << new_settings.pid_file <<
+			"', the old one ('" << settings.pid_file <<
+			"') will not be deleted at program termination.\n";
+	std::swap(settings, new_settings);
+	std::cout << "Configuration reloaded.\n";
 }
 
 int main(int argc, char* argv[])
@@ -731,10 +750,12 @@ int main(int argc, char* argv[])
 		return 1;
 	}
 
+	config = argv[argc == 3 ? 2 : 1];
+
 	try {
-		settings.load(argv[argc == 3 ? 2 : 1]);
+		settings.load(config);
 	} catch(const std::exception& e) {
-		std::cerr << "Error reading config '" << argv[argc == 3 ? 2 : 1] << "': " << e.what() <<  "!\n";
+		std::cerr << "Error reading config '" << config << "': " << e.what() <<  "!\n";
 		return 2;
 	}
 
@@ -760,6 +781,8 @@ int main(int argc, char* argv[])
 	signals_term.async_wait(boost::bind(&boost::asio::io_service::stop, &io_service));
 	boost::asio::signal_set signal_hup(io_service, SIGHUP);
 	signal_hup.async_wait(sighup);
+	boost::asio::signal_set signal_usr1(io_service, SIGUSR1);
+	signal_usr1.async_wait(sigusr1);
 
 	netlink_route_client nrc(io_service);
 
