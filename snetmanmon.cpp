@@ -665,7 +665,6 @@ private:
 					boost::asio::placeholders::error,
 					boost::asio::placeholders::bytes_transferred));
 	}
-	boost::asio::io_service& io_service_;
 	boost::asio::netlink::route::socket socket_;
 	boost::asio::netlink::route::endpoint sender_endpoint_;
 	enum { max_length = 4096 };
@@ -673,8 +672,7 @@ private:
 
 public:
 	netlink_route_client(boost::asio::io_service& io_service)
-		: io_service_(io_service)
-		, socket_(io_service, boost::asio::netlink::route::endpoint(
+		: socket_(io_service, boost::asio::netlink::route::endpoint(
 			RTMGRP_LINK | RTMGRP_IPV4_IFADDR | RTMGRP_IPV6_IFADDR))
 	{
 		// It would be better to use SOCK_CLOEXEC when opening the
