@@ -726,17 +726,20 @@ int main(int argc, char* argv[])
 	std::cout << "\nsnetmanmon V" VERSION << '\n';
 	std::cout << "\n(C) 2015 Alexander Holler\n\n";
 
-	if (argc != 2) {
-		std::cerr << "Usage: snetmanmon config\n\n";
+	if ((argc != 2 && argc != 3) || (argc == 3 && std::string(argv[1]) != "-t")) {
+		std::cerr << "Usage: snetmanmon [-t] config\n\n";
 		return 1;
 	}
 
 	try {
-		settings.load(argv[1]);
+		settings.load(argv[argc == 3 ? 2 : 1]);
 	} catch(const std::exception& e) {
-		std::cerr << "Error reading config '" << argv[1] << "': " << e.what() <<  "!\n";
+		std::cerr << "Error reading config '" << argv[argc == 3 ? 2 : 1] << "': " << e.what() <<  "!\n";
 		return 2;
 	}
+
+	if (argc == 3)
+		return 0;
 
 	if (!settings.pid_file.empty()) {
 		std::ofstream pid;
