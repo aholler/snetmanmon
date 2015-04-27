@@ -9,7 +9,7 @@
 "events": {
 	"link_new": {
 		"filter": {
-			// http://www.boost.org/doc/libs/1_58_0/libs/regex/doc/html/boost_regex/syntax/basic_extended.html
+			// http://www.boost.org/doc/libs/1_58_0/libs/regex/doc/html/boost_regex/syntax/perl_syntax.html
 			"ifname" : "enp0s29u1u2", // regex
 			"address" : "36:ca:63:6:b6:4d", // regex
 			// state can be unknown, notpresent, down,

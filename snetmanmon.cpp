@@ -198,7 +198,7 @@ static void add_regex(const boost::property_tree::ptree::const_assoc_iterator& i
 	std::string str(it->second.get<std::string>(std::move(s), ""));
 	if (str.empty())
 		return;
-	r = boost::regex(std::move(str), boost::regex::extended);
+	r = boost::regex(std::move(str), boost::regex::perl);
 }
 
 static void add_link_events(const boost::property_tree::ptree& pt, std::string&& ltype, Actions& actions, FiltersLink& filters_link)
