@@ -324,8 +324,11 @@ static void parse_link(const nlmsghdr* hdr, EventLink& evt)
 				"dormant",
 				"up",
 			};
-			if (RTA_PAYLOAD(attr))
-				evt.state = states.at(*(uint8_t*)RTA_DATA(attr));
+			if (RTA_PAYLOAD(attr)) {
+				uint8_t state_idx = *static_cast<const uint8_t*>(RTA_DATA(attr));
+				if (state_idx < states.size())
+					evt.state = states[state_idx];
+			}
 			}
 			break;
 		default:
