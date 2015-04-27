@@ -433,6 +433,16 @@ static void link_new(const nlmsghdr* hdr)
 	Link link(evt.ifname, evt.state, evt.address);
 	auto inserted = map_idx_if.insert(std::pair<unsigned, Link>(idx, link));
 	if (!inserted.second && inserted.first != map_idx_if.cend()) {
+		if (evt.state.empty() && !inserted.first->second.state.empty()) {
+			// Use the old state if the netlink msg didn't contain a state
+			evt.state = inserted.first->second.state;
+			link.state = evt.state;
+		}
+		if (evt.address.empty() && !inserted.first->second.address.empty()) {
+			// Use the old address if the netlink msg didn't contain an address
+			evt.address = inserted.first->second.address;
+			link.address = evt.address;
+		}
 		if (evt.ifname == inserted.first->second.ifname &&
 				evt.state == inserted.first->second.state &&
 				evt.address == inserted.first->second.address)
