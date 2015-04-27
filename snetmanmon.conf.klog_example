@@ -20,36 +20,36 @@
 		// In other words, lookup if it's possible that more than one
 		// _old will not be empty.
 		"filter": {
-			"ifname_old": "^$", // empty => if not renamed
-			"address": "^$", // some interfaces like the loopback don't have a MAC
-			"actions": {
+			"ifname_old": "^$" // empty => if not renamed
+			,"address": "^$" // some interfaces like the loopback don't have a MAC
+			,"actions": {
 				"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: New or changed interface '%i' (state %s, old state %S)\""
 			}
-		},
-		"filter": {
-			"ifname_old": "^$",
-			"address": ".+",
-			"actions": {
+		}
+		,"filter": {
+			"ifname_old": "^$"
+			,"address": ".+"
+			,"actions": {
 				"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: New or changed interface '%i' (MAC %a, state %s, old state %S)\""
 			}
-		},
-		"filter": {
-			"ifname_old": ".+", // not empty => if renamed
-			"address": "^$",
-			"actions": {
+		}
+		,"filter": {
+			"ifname_old": ".+" // not empty => if renamed
+			,"address": "^$"
+			,"actions": {
 				"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: Interface '%I' was renamed to '%i' (state %s, old state %S)\""
 			}
-		},
-		"filter": {
-			"ifname_old": ".+",
-			"address": ".+", // require a MAC
-			"actions": {
+		}
+		,"filter": {
+			"ifname_old": ".+"
+			,"address": ".+" // require a MAC
+			,"actions": {
 				"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: Interface '%I' was renamed to '%i' (MAC %a, state %s, old state %S)\""
 			}
-		},
-		"filter": {
-			"address_old": ".+", // not empty => MAC changed
-			"actions": {
+		}
+		,"filter": {
+			"address_old": ".+" // not empty => MAC changed
+			,"actions": {
 				"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: Interface '%i' changed MAC from %A to %a (state %s, old state %S)\""
 			}
 		}
@@ -61,36 +61,36 @@
 	},
 	"addr_new": {
 		"filter": {
-			"type": "v4",
-			"broadcast": ".+",
-			"actions": {
+			"type": "v4"
+			,"broadcast": ".+"
+			,"actions": {
 				"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: New IPv4 %a on interface '%i' (broadcast %b)\""
 			}
-		},
-		"filter": {
-			"type": "v4",
-			"broadcast": "^$",
-			"actions": {
+		}
+		,"filter": {
+			"type": "v4"
+			,"broadcast": "^$"
+			,"actions": {
 				"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: New IPv4 %a on interface '%i'\""
 			}
-		},
-		"filter": {
-			"type": "v6",
-			"actions": {
+		}
+		,"filter": {
+			"type": "v6"
+			,"actions": {
 				"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: New IPv6 %a on interface '%i'\""
 			}
 		}
 	},
 	"addr_del": {
 		"filter": {
-			"type": "v4",
-			"actions": {
+			"type": "v4"
+			,"actions": {
 				"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: IPv4 %a on interface '%i'\" was deleted"
 			}
-		},
-		"filter": {
-			"type": "v6",
-			"actions": {
+		}
+		,"filter": {
+			"type": "v6"
+			,"actions": {
 				"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: IPv6 %a on interface '%i'\" was deleted"
 			}
 		}
