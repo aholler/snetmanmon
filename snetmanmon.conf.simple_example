@@ -4,6 +4,7 @@
 
 "link_new_for_existing_links": "1", // default false/0
 "addr_new_for_existing_addresses": "true",
+"route_new_for_existing_routes": "true",
 
 "events": {
 	"link_new": {
@@ -24,6 +25,16 @@
 	,"addr_del": {
 		"actions": {
 			"stdout": "e:'%e' i:'%i' t:'%t' a:'%a' b:'%b'"
+		}
+	}
+	,"route_new": {
+		"actions": {
+			"stdout": "e:'%e' i:'%i' t:'%t' d:'%d' g:'%g'"
+		}
+	}
+	,"route_del": {
+		"actions": {
+			"stdout": "e:'%e' i:'%i' t:'%t' d:'%d' g:'%g'"
 		}
 	}
 } // events

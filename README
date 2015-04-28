@@ -12,20 +12,22 @@ connman and similiar tools, which all lacked some functionality I wanted.
 
 
 In particular it makes it possible to not only react on (dis)appearing
-interfaces, but also on (dis)appearing IPs, besides the possibility
-to do actions based on the MAC of an interface too.
+interfaces, but also on (dis)appearing IPs and (dis)appearing routes,
+besides the possibility to do actions based on the MAC of an interface
+too.
 
 Furthermore it's a tool to keep track (logging) of changes in regard
-to interfaces and IP addresses on a machine. Something which becomes
-more important in times of virtual machines, containers and
+to interfaces, IP addresses and routes on a machine. Something which
+becomes more important in times of virtual machines, containers and
 software-defined networking (SDN) and which isn't supported by the
 tools above.
 
-That means if you want to log the (dis)appearance of interfaces and
-IP addresses on your machine, this tool might be your choice.
+That means if you want to log the (dis)appearance of interfaces,
+IP addresses and routes on your machine, this tool might be your
+choice.
 
 But it also gives the possibility to do almost anything else if
-a network interface or an IP (dis)appears. E.g. if you want to
+a network interface, an IP or route (dis)appears. E.g. if you want to
 start a DHCP-client if a WLAN dongle with a MAC a:b:c:d:e:f will be
 attached to your system and furthermore you want to start a
 NTP-client only if the IP i.j.k.m (or i::*) appears on interface
@@ -38,7 +40,7 @@ documentation.
 
 Why is it called simple? Because it almost doesn't do any actions
 itself. E.g. It doesn't configure network interfaces nor does it
-do DHCP by itself, but instead relies on whatever tool the users
+do DHCP by itself, but instead relies on whatever tool the user
 prefers to accomplish such actions. This is in line with the old
 comcept on Unix systems of "Do One Thing and Do It Well". So,
 hopefully, snetmanmon does it well too.

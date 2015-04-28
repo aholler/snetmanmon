@@ -4,6 +4,7 @@
 
 "link_new_for_existing_links": "1", // default false/0
 "addr_new_for_existing_addresses": "true", // default false/0
+"route_new_for_existing_routes": "true", // default false/0
 "pid_file": "/tmp/snetmanmon.pid", // default none
 
 "events": {
@@ -86,6 +87,34 @@
 	,"addr_del": {
 		"actions": {
 			"exec_seq": "logger \"snetmanmon: IP%t %a on interface '%i' was deleted\""
+		}
+	}
+	,"route_new": {
+		"filter": {
+			"gateway": ".+"
+			,"actions": {
+				"exec_seq": "logger \"snetmanmon: New route %d (gateway %g, type %t) on interface '%i'\""
+			}
+		}
+		,"filter": {
+			"gateway": "^$"
+			,"actions": {
+				"exec_seq": "logger \"snetmanmon: New route %d (type %t) on interface '%i'\""
+			}
+		}
+	}
+	,"route_del": {
+		"filter": {
+			"gateway": ".+"
+			,"actions": {
+				"exec_seq": "logger \"snetmanmon: Route %d (gateway %g, type %t) on interface '%i' was deleted\""
+			}
+		}
+		,"filter": {
+			"gateway": "^$"
+			,"actions": {
+				"exec_seq": "logger \"snetmanmon: Route %d (type %t) on interface '%i' was deleted\""
+			}
 		}
 	}
 } // events

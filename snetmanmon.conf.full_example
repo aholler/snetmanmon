@@ -14,6 +14,7 @@
 
 "link_new_for_existing_links": "1", // default false/0
 "addr_new_for_existing_addresses": "true", // default false/0
+"route_new_for_existing_routes": "true", // default false/0
 "pid_file": "/run/snetmanmon.pid", // default none
 
 // Currently there exists these events:
@@ -22,6 +23,8 @@
 //	link_del
 //	addr_new
 //	addr_del
+//	route_new
+//	route_del
 //
 // These actions are currently available:
 //
@@ -77,6 +80,31 @@
 //	%a		The IP.
 //	%b		The broadcast address.
 //	%t		They type of the IP.
+//
+// Support for routes is currently (by intention) limited, but it should cover
+// the basic needs of most people.
+// In particular, snetmanmon currently only logs unicast routes from the
+// Linux kernels main table (254) which have one of the routing protocol IDs
+// kernel, boot, static or RA (see include/linux/rtnetlink.h).
+// This is currently hardcoded but might change if the expierence will show
+// that more flexibility is needed.
+//
+// Filters for route events can have the following properties:
+//
+//	ifname		The name of the interface.
+//	destination	The destionation (in the form IP/len, e.g. 127.0.0.0/8 or 'default').
+//	gateway		The gateway (might be empty).
+//	type		Type of the route (either v4 or v6).
+//
+// Except the type, all of these properties are regular expressions.
+//
+// The following special variables can be used in actions for route events:
+//
+//	%e 		Name of the event.
+//	%i		Name of the interface.
+//	%d		The destination.
+//	%g		The gateway.
+//	%t		They type of the route.
 //
 // All regular expressions have to be in the Perl syntax, which is the same
 // as used in JavaScript. For documentation have a look at
@@ -164,6 +192,37 @@
 			"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: IP%t %a on interface '%i' was deleted\""
 		}
 	}
+
+	/* route events may happen surprisingly often, therefor we don't log them by default to the kernels ring buffer
+	,"route_new": {
+		"filter": {
+			"gateway": ".+"
+			,"actions": {
+				"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: New route %d (gateway %g, type %t) on interface '%i'\""
+			}
+		}
+		,"filter": {
+			"gateway": "^$"
+			,"actions": {
+				"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: New route %d (type %t) on interface '%i'\""
+			}
+		}
+	}
+	,"route_del": {
+		"filter": {
+			"gateway": ".+"
+			,"actions": {
+				"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: Route %d (gateway %g, type %t) on interface '%i' was deleted\""
+			}
+		}
+		,"filter": {
+			"gateway": "^$"
+			,"actions": {
+				"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: Route %d (type %t) on interface '%i' was deleted\""
+			}
+		}
+	}
+	*/ // end of disabled route event logging
 
 	// Like with filters and actions, it's possible to have multiple
 	// sections for the same event. This is handy to group events by
@@ -404,6 +463,16 @@
 	,"addr_del": {
 		"actions": {
 			"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: e:'%e' i:'%i' t:'%t' a:'%a' b:'%b'\""
+		}
+	}
+	,"route_new": {
+		"actions": {
+			"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: e:'%e' i:'%i' t:'%t' d:'%d' g:'%g'\""
+		}
+	}
+	,"route_del": {
+		"actions": {
+			"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: e:'%e' i:'%i' t:'%t' d:'%d' g:'%g'\""
 		}
 	}
 

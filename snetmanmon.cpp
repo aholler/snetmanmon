@@ -27,6 +27,34 @@
 typedef std::set<boost::asio::ip::address> SetIps;
 typedef std::map<unsigned, SetIps> Map_idx_addrs;
 
+class Route
+{
+	public:
+		Route(std::string&& d, std::string&& g, bool v6)
+			: destination(std::move(d))
+			, gateway(std::move(g))
+			, is_v6(v6)
+		{}
+		Route(const std::string& d, const std::string& g, bool v6)
+			: destination(d)
+			, gateway(g)
+			, is_v6(v6)
+		{}
+		std::string destination;
+		std::string gateway;
+		bool is_v6;
+		bool operator==(const Route& r) const {
+			return destination == r.destination && gateway == r.gateway;
+		}
+		bool operator<(const Route& r) const {
+			if (destination == r.destination)
+				return gateway < r.gateway;
+			return destination < r.destination;
+		}
+};
+typedef std::set<Route> SetRoutes;
+typedef std::map<unsigned, SetRoutes> Map_idx_routes;
+
 class Link
 {
 	public:
@@ -48,6 +76,7 @@ class Link
 typedef std::map<unsigned, Link> Map_idx_if;
 
 static Map_idx_addrs map_idx_addrs;
+static Map_idx_routes map_idx_routes;
 static Map_idx_if map_idx_if;
 
 static void print_ifs(void)
@@ -64,6 +93,13 @@ static void print_ifs(void)
 		auto end_addrs = i->second.cend();
 		for (auto j = i->second.cbegin(); j != end_addrs; ++j)
 			std::cout << "\taddr " << j->to_string() << '\n';
+	}
+	auto end_ifs2 = map_idx_routes.cend();
+	for (auto i = map_idx_routes.cbegin(); i != end_ifs2; ++i) {
+		std::cout << "idx " << i->first << "\n";
+		auto end_routes = i->second.cend();
+		for (auto j = i->second.cbegin(); j != end_routes; ++j)
+			std::cout << "\troute " << j->destination << " gw " << j->gateway << '\n';
 	}
 }
 
@@ -118,6 +154,14 @@ class EventAddr : public Event
 		bool type_v6; // ipv6?
 };
 
+class EventRoute : public Event
+{
+	public:
+		std::string gateway;
+		bool type_v6; // ipv6?
+		unsigned if_idx;
+};
+
 struct Action
 {
 	enum Type {
@@ -155,18 +199,31 @@ class FilterAddress: public Filter
 };
 typedef std::vector<FilterAddress> FiltersAddress;
 
+class FilterRoute: public Filter
+{
+	public:
+		boost::regex gateway;
+		std::string type;
+};
+typedef std::vector<FilterRoute> FiltersRoute;
+
 class Settings {
 	public:
 		Actions actions_link_new;
 		Actions actions_link_del;
 		Actions actions_addr_new;
 		Actions actions_addr_del;
+		Actions actions_route_new;
+		Actions actions_route_del;
 		FiltersLink filters_link_new;
 		FiltersLink filters_link_del;
 		FiltersAddress filters_addr_new;
 		FiltersAddress filters_addr_del;
+		FiltersRoute filters_route_new;
+		FiltersRoute filters_route_del;
 		bool link_new_for_existing_links;
 		bool addr_new_for_existing_addresses;
+		bool route_new_for_existing_routes;
 		std::string pid_file;
 		void load(const std::string& path);
 };
@@ -239,6 +296,24 @@ static void add_address_events(const boost::property_tree::ptree& pt, std::strin
 	}
 }
 
+static void add_route_events(const boost::property_tree::ptree& pt, std::string&& atype, Actions& actions, FiltersRoute& filters_route)
+{
+	auto events = pt.equal_range(std::move(atype));
+	for (auto it = events.first; it != events.second; ++it ) {
+		add_actions(it->second, actions);
+		auto filters = it->second.equal_range("filter");
+		for (auto itf = filters.first; itf != filters.second; ++itf ) {
+			FilterRoute filter;
+			add_regex(itf, "ifname", filter.ifname);
+			add_regex(itf, "destination", filter.address);
+			add_regex(itf, "gateway", filter.gateway);
+			filter.type = itf->second.get<std::string>("type", "");
+			add_actions(itf->second, filter.actions);
+			filters_route.push_back(std::move(filter));
+		}
+	}
+}
+
 void Settings::load(const std::string& path)
 {
 	boost::property_tree::ptree pt;
@@ -246,12 +321,15 @@ void Settings::load(const std::string& path)
 
 	link_new_for_existing_links = pt.get<bool>("link_new_for_existing_links", false);
 	addr_new_for_existing_addresses = pt.get<bool>("addr_new_for_existing_addresses", false);
+	route_new_for_existing_routes = pt.get<bool>("route_new_for_existing_routes", false);
 	pid_file = pt.get<std::string>("pid_file", "");
 	boost::property_tree::ptree& events(pt.get_child("events"));
 	add_link_events(events, "link_new", actions_link_new, filters_link_new);
 	add_link_events(events, "link_del", actions_link_del, filters_link_del);
 	add_address_events(events, "addr_new", actions_addr_new, filters_addr_new);
 	add_address_events(events, "addr_del", actions_addr_del, filters_addr_del);
+	add_route_events(events, "route_new", actions_route_new, filters_route_new);
+	add_route_events(events, "route_del", actions_route_del, filters_route_del);
 }
 
 static Settings settings;
@@ -391,6 +469,17 @@ static std::string build_string(const EventAddr& evt, const std::string& s, cons
 	return result;
 }
 
+static std::string build_string(const EventRoute& evt, const std::string& s, const std::string& etype)
+{
+	std::string result(s);
+	stringReplace(result, "%d", evt.address);
+	stringReplace(result, "%e", etype);
+	stringReplace(result, "%g", evt.gateway);
+	stringReplace(result, "%i", evt.ifname);
+	stringReplace(result, "%t", (evt.type_v6 ? "v6" : "v4"));
+	return result;
+}
+
 template <class E>
 static void do_actions(const E& evt, const std::string& etype, const Actions& actions)
 {
@@ -440,6 +529,19 @@ static bool filter_matches(const EventAddr& evt, const FilterAddress& filter)
 	return true;
 }
 
+static bool filter_matches(const EventRoute& evt, const FilterRoute& filter)
+{
+	if (!is_empty_or_matches(filter.ifname, evt.ifname))
+		return false;
+	if (!is_empty_or_matches(filter.address, evt.address))
+		return false;
+	if (!is_empty_or_matches(filter.gateway, evt.gateway))
+		return false;
+	if (!filter.type.empty() && filter.type != (evt.type_v6 ? "v6" : "v4"))
+		return false;
+	return true;
+}
+
 template <class E, class F>
 static void do_filters(const E& evt, const std::string& etype, const F& filters)
 {
@@ -456,6 +558,7 @@ static void link_new(const nlmsghdr* hdr)
 
 	unsigned idx = static_cast<const ifinfomsg*>(NLMSG_DATA(hdr))->ifi_index;
 	map_idx_addrs.insert(std::pair<unsigned, SetIps>(idx, SetIps()));
+	map_idx_routes.insert(std::pair<unsigned, SetRoutes>(idx, SetRoutes()));
 	Link link(evt.ifname, evt.state, evt.address);
 	auto inserted = map_idx_if.insert(std::pair<unsigned, Link>(idx, link));
 	if (inserted.second) {
@@ -532,6 +635,18 @@ static void link_del(const nlmsghdr* hdr)
 			do_filters(evt_addr, "addr_del", settings.filters_addr_del);
 		}
 	map_idx_addrs.erase(idx);
+	auto foundr = map_idx_routes.find(idx);
+	if (foundr != map_idx_routes.cend())
+		for (auto route = foundr->second.cbegin(); route != foundr->second.cend(); ++route) {
+			EventRoute evt_route;
+			evt_route.ifname = evt.ifname;
+			evt_route.address = route->destination;
+			evt_route.gateway = route->gateway;
+			evt_route.type_v6 = route->is_v6;
+			do_actions(evt_route, "route_del", settings.actions_route_del);
+			do_filters(evt_route, "route_del", settings.filters_route_del);
+		}
+	map_idx_routes.erase(idx);
 	map_idx_if.erase(idx);
 	do_actions(evt, "link_del", settings.actions_link_del);
 	do_filters(evt, "link_del", settings.filters_link_del);
@@ -600,6 +715,93 @@ static void addr_del(const nlmsghdr* hdr)
 		found->second.erase(boost::asio::ip::address::from_string(evt.address));
 		do_actions(evt, "addr_del", settings.actions_addr_del);
 		do_filters(evt, "addr_del", settings.filters_addr_del);
+	}
+}
+
+static void parse_route(const nlmsghdr& hdr, EventRoute& evt)
+{
+	const rtmsg* msg = static_cast<const rtmsg *>(NLMSG_DATA(&hdr));
+	if (msg->rtm_type != RTN_UNICAST || msg->rtm_table != RT_TABLE_MAIN)
+		return;
+	if (msg->rtm_protocol != RTPROT_BOOT && msg->rtm_protocol != RTPROT_KERNEL &&
+			msg->rtm_protocol != RTPROT_STATIC &&
+			msg->rtm_protocol != RTPROT_RA)
+		return;
+	if (msg->rtm_family != AF_INET6 && msg->rtm_family != AF_INET)
+		return;
+	evt.if_idx = 0;
+	evt.type_v6 = (msg->rtm_family == AF_INET6);
+	int bytes = RTM_PAYLOAD(&hdr);
+	for (const rtattr* attr = RTM_RTA(msg); RTA_OK(attr, bytes); attr = RTA_NEXT(attr, bytes)) {
+		switch (attr->rta_type) {
+		case RTA_DST:
+			evt.address = inet2str(attr, msg->rtm_family);
+			break;
+		case RTA_OIF:
+			if (RTA_PAYLOAD(attr) == sizeof(uint32_t)) {
+				evt.if_idx = *static_cast<uint32_t*>(RTA_DATA(attr));
+				auto found = map_idx_if.find(evt.if_idx);
+				if (found != map_idx_if.end())
+					evt.ifname = found->second.ifname;
+			}
+			break;
+		case RTA_GATEWAY:
+			evt.gateway = inet2str(attr, msg->rtm_family);
+			break;
+		default:
+			break;
+		}
+	}
+
+	if (!evt.address.empty()) {
+		if ((evt.type_v6 && msg->rtm_dst_len != 128) || (!evt.type_v6 && msg->rtm_dst_len != 32))
+			evt.address += "/" + std::to_string(static_cast<unsigned>(msg->rtm_dst_len));
+	} else if (msg->rtm_dst_len) {
+		evt.address = "0/";
+		evt.address += std::to_string(static_cast<unsigned>(msg->rtm_dst_len));
+	}
+	else
+		evt.address = "default";
+}
+
+static void route_new(const nlmsghdr& hdr)
+{
+	EventRoute evt;
+	parse_route(hdr, evt);
+
+	if(evt.address.empty() || evt.ifname.empty())
+		return;
+
+	auto found = map_idx_routes.find(evt.if_idx);
+	if (found == map_idx_routes.cend()) {
+		auto if_found = map_idx_if.find(evt.if_idx);
+		if (if_found == map_idx_if.cend())
+			return;
+		auto inserted = map_idx_routes.insert(std::pair<unsigned, SetRoutes>(evt.if_idx, SetRoutes()));
+		found = inserted.first;
+	}
+	if (found != map_idx_routes.cend()) {
+		auto inserted = found->second.insert(Route(evt.address, evt.gateway, evt.type_v6));
+		if (inserted.second) {
+			do_actions(evt, "route_new", settings.actions_route_new);
+			do_filters(evt, "route_new", settings.filters_route_new);
+		}
+	}
+}
+
+static void route_del(const nlmsghdr& hdr)
+{
+	EventRoute evt;
+	parse_route(hdr, evt);
+
+	if(evt.address.empty() || evt.ifname.empty())
+		return;
+
+	auto found = map_idx_routes.find(evt.if_idx);
+	if (found != map_idx_routes.cend()) {
+		found->second.erase(Route(evt.address, evt.gateway, false));
+		do_actions(evt, "route_del", settings.actions_route_del);
+		do_filters(evt, "route_del", settings.filters_route_del);
 	}
 }
 
@@ -699,15 +901,40 @@ private:
 					boost::asio::placeholders::error,
 					boost::asio::placeholders::bytes_transferred));
 	}
+	typedef std::array<char, NLMSG_LENGTH(sizeof(rtmsg))> RtmsgBuf;
+	void handle_send(RtmsgBuf* buf, const boost::system::error_code& ec, std::size_t)
+	{
+		delete buf;
+		if (ec)
+			std::cerr << "Error sending route query (" << ec.message() << ")!\n";
+	}
+
+	void query_routes(void) {
+		auto buf = new RtmsgBuf;
+		buf->fill(0);
+		nlmsghdr* nl_msg = reinterpret_cast<nlmsghdr*>(buf);
+		nl_msg->nlmsg_len = buf->size();
+		nl_msg->nlmsg_type = RTM_GETROUTE;
+		nl_msg->nlmsg_flags = NLM_F_DUMP | NLM_F_REQUEST;
+		nl_msg->nlmsg_pid = ::getpid();
+		nl_msg->nlmsg_seq = ++seq;
+		socket_.async_send_to(boost::asio::buffer(buf, buf->size()), socket_.remote_endpoint(),
+			boost::bind(&netlink_route_client::handle_send, this, buf,
+				boost::asio::placeholders::error,
+				boost::asio::placeholders::bytes_transferred));
+	}
 	boost::asio::netlink::route::socket socket_;
 	boost::asio::netlink::route::endpoint sender_endpoint_;
-	enum { max_length = 4096 };
+	enum { max_length = 8192 };
 	char data_[max_length];
+	unsigned seq;
 
 public:
 	netlink_route_client(boost::asio::io_service& io_service)
 		: socket_(io_service, boost::asio::netlink::route::endpoint(
-			RTMGRP_LINK | RTMGRP_IPV4_IFADDR | RTMGRP_IPV6_IFADDR))
+			RTMGRP_LINK | RTMGRP_IPV4_IFADDR | RTMGRP_IPV6_IFADDR |
+			RTMGRP_IPV4_ROUTE | RTMGRP_IPV6_ROUTE))
+		, seq(0)
 	{
 		// It would be better to use SOCK_CLOEXEC when opening the
 		// socket, but as we are still single threaded here, it
@@ -716,6 +943,8 @@ public:
 			std::cerr << strerror(errno) << '\n';
 		receive();
 		populate_ifs();
+		if (settings.route_new_for_existing_routes)
+			query_routes();
 	}
 
 	void handle_receive_from(const boost::system::error_code& error, size_t bytes_recvd) {
@@ -736,6 +965,12 @@ public:
 					break;
 				case RTM_DELADDR:
 					addr_del(hdr);
+					break;
+				case RTM_NEWROUTE:
+					route_new(*hdr);
+					break;
+				case RTM_DELROUTE:
+					route_del(*hdr);
 					break;
 				default:
 					break;
