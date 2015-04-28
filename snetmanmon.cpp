@@ -699,23 +699,24 @@ public:
 
 	void handle_receive_from(const boost::system::error_code& error, size_t bytes_recvd) {
 		const nlmsghdr* hdr = reinterpret_cast<const nlmsghdr*>(data_);
-		if (!error && bytes_recvd && !sender_endpoint_.pid() && NLMSG_OK(hdr, bytes_recvd))
-			switch (hdr->nlmsg_type) {
-			case RTM_NEWLINK:
-				link_new(hdr);
-				break;
-			case RTM_DELLINK:
-				link_del(hdr);
-				break;
-			case RTM_NEWADDR:
-				addr_new(hdr);
-				break;
-			case RTM_DELADDR:
-				addr_del(hdr);
-				break;
-			default:
-				break;
-			}
+		if (!error && bytes_recvd && !sender_endpoint_.pid())
+			for(; NLMSG_OK(hdr, bytes_recvd); hdr = NLMSG_NEXT(hdr, bytes_recvd))
+				switch (hdr->nlmsg_type) {
+				case RTM_NEWLINK:
+					link_new(hdr);
+					break;
+				case RTM_DELLINK:
+					link_del(hdr);
+					break;
+				case RTM_NEWADDR:
+					addr_new(hdr);
+					break;
+				case RTM_DELADDR:
+					addr_del(hdr);
+					break;
+				default:
+					break;
+				}
 		receive();
 	}
 };
