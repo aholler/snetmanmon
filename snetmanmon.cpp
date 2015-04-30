@@ -487,11 +487,66 @@ static void link_new(const nlmsghdr* hdr)
 	}
 }
 
+static std::string build_addr_string(const EventAddr& evt, const std::string& s, const std::string& etype)
+{
+	std::string result(s);
+	stringReplace(result, "%a", evt.address);
+	stringReplace(result, "%b", evt.broadcast);
+	stringReplace(result, "%e", etype);
+	stringReplace(result, "%i", evt.ifname);
+	stringReplace(result, "%t", (evt.type_v6 ? "v6" : "v4"));
+	return result;
+}
+
+static void do_addr_actions(const EventAddr& evt, const std::string& etype, const Actions& actions)
+{
+	auto end = actions.cend();
+	for (auto i = actions.cbegin(); i != end; ++i) {
+		if (i->str.empty())
+			continue;
+		std::string str(build_addr_string(evt, i->str, etype));
+		do_action(*i, std::move(str));
+	}
+}
+
+static bool filter_matches(const EventAddr& evt, const FilterAddress& filter)
+{
+	if (!is_empty_or_matches(filter.ifname, evt.ifname))
+		return false;
+	if (!is_empty_or_matches(filter.address, evt.address))
+		return false;
+	if (!is_empty_or_matches(filter.broadcast, evt.broadcast))
+		return false;
+	if (!filter.type.empty() && filter.type != (evt.type_v6 ? "v6" : "v4"))
+		return false;
+	return true;
+}
+
+static void do_addr_filters(const EventAddr& evt, const std::string& etype, const FiltersAddress& filters)
+{
+	auto end = filters.cend();
+	for (auto i = filters.cbegin(); i != end; ++i)
+		if (filter_matches(evt, *i))
+			do_addr_actions(evt, etype, i->actions);
+}
+
 static void link_del(const nlmsghdr* hdr)
 {
 	EventLink evt;
 	parse_link(hdr, evt);
 	unsigned idx = static_cast<const ifinfomsg*>(NLMSG_DATA(hdr))->ifi_index;
+	// Make sure to send addr_del events for any addresses we
+	// might not have received such an event.
+	auto found = map_idx_addrs.find(idx);
+	if (found != map_idx_addrs.cend())
+		for (auto addr = found->second.begin(); addr != found->second.cend(); ++addr) {
+			EventAddr evt_addr;
+			evt_addr.ifname = evt.ifname;
+			evt_addr.address = addr->to_string();
+			evt_addr.type_v6 = addr->is_v6();
+			do_addr_actions(evt_addr, "addr_del", settings.actions_addr_del);
+			do_addr_filters(evt_addr, "addr_del", settings.filters_addr_del);
+		}
 	map_idx_addrs.erase(idx);
 	map_idx_if.erase(idx);
 	do_link_actions(evt, "link_del", settings.actions_link_del);
@@ -534,49 +589,6 @@ static void parse_addr(const nlmsghdr* hdr, EventAddr& evt)
 			break;
 		}
 	}
-}
-
-static std::string build_addr_string(const EventAddr& evt, const std::string& s, const std::string& etype)
-{
-	std::string result(s);
-	stringReplace(result, "%a", evt.address);
-	stringReplace(result, "%b", evt.broadcast);
-	stringReplace(result, "%e", etype);
-	stringReplace(result, "%i", evt.ifname);
-	stringReplace(result, "%t", (evt.type_v6 ? "v6" : "v4"));
-	return result;
-}
-
-static void do_addr_actions(const EventAddr& evt, const std::string& etype, const Actions& actions)
-{
-	auto end = actions.cend();
-	for (auto i = actions.cbegin(); i != end; ++i) {
-		if (i->str.empty())
-			continue;
-		std::string str(build_addr_string(evt, i->str, etype));
-		do_action(*i, std::move(str));
-	}
-}
-
-static bool filter_matches(const EventAddr& evt, const FilterAddress& filter)
-{
-	if (!is_empty_or_matches(filter.ifname, evt.ifname))
-		return false;
-	if (!is_empty_or_matches(filter.address, evt.address))
-		return false;
-	if (!is_empty_or_matches(filter.broadcast, evt.broadcast))
-		return false;
-	if (!filter.type.empty() && filter.type != (evt.type_v6 ? "v6" : "v4"))
-		return false;
-	return true;
-}
-
-static void do_addr_filters(const EventAddr& evt, const std::string& etype, const FiltersAddress& filters)
-{
-	auto end = filters.cend();
-	for (auto i = filters.cbegin(); i != end; ++i)
-		if (filter_matches(evt, *i))
-			do_addr_actions(evt, etype, i->actions);
 }
 
 static void addr_new(const nlmsghdr* hdr)
