@@ -432,34 +432,59 @@ static void link_new(const nlmsghdr* hdr)
 	map_idx_addrs.insert(std::pair<unsigned, SetIps>(idx, SetIps()));
 	Link link(evt.ifname, evt.state, evt.address);
 	auto inserted = map_idx_if.insert(std::pair<unsigned, Link>(idx, link));
-	if (!inserted.second && inserted.first != map_idx_if.cend()) {
-		if (evt.state.empty() && !inserted.first->second.state.empty()) {
-			// Use the old state if the netlink msg didn't contain a state
-			evt.state = inserted.first->second.state;
-			link.state = evt.state;
-		}
-		if (evt.address.empty() && !inserted.first->second.address.empty()) {
-			// Use the old address if the netlink msg didn't contain an address
-			evt.address = inserted.first->second.address;
-			link.address = evt.address;
-		}
-		if (evt.ifname == inserted.first->second.ifname &&
-				evt.state == inserted.first->second.state &&
-				evt.address == inserted.first->second.address)
-			return;
-		if (evt.ifname != inserted.first->second.ifname)
-			// if got renamed
-			evt.ifname_old = inserted.first->second.ifname;
-		if (evt.state != inserted.first->second.state)
-			// status changed
-			evt.state_old = inserted.first->second.state;
-		if (evt.address != inserted.first->second.address)
-			// MAC changed
-			evt.address_old = inserted.first->second.address;
-		inserted.first->second = link;
+	if (inserted.second) {
+		// New link (interface), submit the event, done.
+		do_link_actions(evt, "link_new", settings.actions_link_new);
+		do_link_filters(evt, "link_new", settings.filters_link_new);
+		return;
 	}
-	do_link_actions(evt, "link_new", settings.actions_link_new);
-	do_link_filters(evt, "link_new", settings.filters_link_new);
+	// Link (interface) already exists.
+	if (evt.state.empty() && !inserted.first->second.state.empty()) {
+		// Use the old state if the netlink msg didn't contain a state
+		evt.state = inserted.first->second.state;
+		link.state = evt.state;
+	}
+	if (evt.address.empty() && !inserted.first->second.address.empty()) {
+		// Use the old address if the netlink msg didn't contain an address
+		evt.address = inserted.first->second.address;
+		link.address = evt.address;
+	}
+	if (evt.ifname == inserted.first->second.ifname &&
+			evt.state == inserted.first->second.state &&
+			evt.address == inserted.first->second.address)
+		// Nothing (we care for) has changed
+		return;
+
+	EventLink evt_old(evt);
+	evt_old.ifname = inserted.first->second.ifname;
+	evt_old.address = inserted.first->second.address;
+	evt_old.state = inserted.first->second.state;
+	// Now generate one event for every change, even if we
+	// received several changes with one event.
+	if (evt.ifname != inserted.first->second.ifname) {
+		// if got renamed
+		evt_old.ifname = evt.ifname;
+		evt_old.ifname_old = inserted.first->second.ifname;
+		inserted.first->second.ifname = evt.ifname;
+		do_link_actions(evt_old, "link_new", settings.actions_link_new);
+		do_link_filters(evt_old, "link_new", settings.filters_link_new);
+		evt_old.ifname_old.clear();
+	}
+	if (evt.state != inserted.first->second.state) {
+		// State changed
+		evt_old.state = evt.state;
+		evt_old.state_old = inserted.first->second.state;
+		inserted.first->second.state = evt.state;
+		do_link_actions(evt_old, "link_new", settings.actions_link_new);
+		do_link_filters(evt_old, "link_new", settings.filters_link_new);
+		//evt_old.state_old.clear();
+	}
+	if (evt.address != inserted.first->second.address) {
+		// MAC changed
+		inserted.first->second.address = evt.address;
+		do_link_actions(evt, "link_new", settings.actions_link_new);
+		do_link_filters(evt, "link_new", settings.filters_link_new);
+	}
 }
 
 static void link_del(const nlmsghdr* hdr)
