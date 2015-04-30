@@ -10,18 +10,18 @@
 		"actions": {
 			"stdout": "e:'%e' i:'%i' I:'%I' a:'%a' A:'%A' s:'%s' S:'%S'"
 		}
-	},
-	"link_del": {
+	}
+	,"link_del": {
 		"actions": {
 			"stdout": "e:'%e' i:'%i' I:'%I' a:'%a' A:'%A' s:'%s' S:'%S'"
 		}
-	},
-	"addr_new": {
+	}
+	,"addr_new": {
 		"actions": {
 			"stdout": "e:'%e' i:'%i' t:'%t' a:'%a' b:'%b'"
 		}
-	},
-	"addr_del": {
+	}
+	,"addr_del": {
 		"actions": {
 			"stdout": "e:'%e' i:'%i' t:'%t' a:'%a' b:'%b'"
 		}
