@@ -6,10 +6,74 @@
 "addr_new_for_existing_addresses": "true", // default false/0
 "pid_file": "/tmp/snetmanmon.pid", // default none
 
+// Currently there exists these events:
+//
+//	link_new
+//	link_del
+//	addr_new
+//	addr_del
+//
+// These actions are currently available:
+//
+//	stdout		Prints a message on stdout.
+//	exec		Executes something in a separate thread.
+//	exec_seq	Executes something by using a special thread for all
+//			actions of type exec_seq. That means these actions are
+//			serialized and a new action happens only after the
+//			action before has terminated.
+//
+// Filters for link events can have the following properties (all are regular
+// expressions):
+//
+//	ifname		The name of the interface.
+//	address		The MAC of the interface (not everyone has one). The
+//			format is always aa:bb:cc:dd:ee:ff (single digit
+//			values will always have a leading zero).
+//	state		The state of the interface, this can be
+//			unknown, notpresent, down, lowerlayerdown, testing,
+//			dormant or up. The state in events generated for
+//			interfaces which already existed at startup will be
+//			only up or down.
+//	ifname_old	Contains the old name if a change of the name occured.
+//	address_old	Contains the old MAC if a change of the MAC occured.
+//	state_old	Contains the old state if a change of the state occured.
+//
+// snetmanmon makes sure only one _old is not empty.
+// In other words every event contains only one change.
+//
+// The following special variables can be used in actions for filter events:
+//
+//	%e 		Name of the event.
+//	%i		Name of the interface.
+//	%I		Old name (if changed)
+//	%a		MAC of the interface.
+//	%A		Old MAC (if changed).
+//	%s		State of the interface.
+//	%S		Old state (if changed).
+//
+// Filters for address events can have the following properties:
+//
+//	ifname		The name of the interface.
+//	address		The IP (either v4 or v6).
+//	broadcast	The broadcast address (only for IPv4 addresses).
+//	type		Type of the IP (either v4 or v6).
+//
+// Except the type, all of these properties are regular expressions too.
+//
+// The following special variables can be used in actions for address events:
+//
+//	%e 		Name of the event.
+//	%i		Name of the interface.
+//	%a		The IP.
+//	%b		The broadcast address.
+//	%t		They type of the IP.
+//
+// All regular expressions have to be in the Perl syntax, which is the same
+// as used in JavaScript. For documentation have a look at
+// http://www.boost.org/doc/libs/1_58_0/libs/regex/doc/html/boost_regex/syntax/perl_syntax.html
+
 "events": {
 	"link_new": {
-		// snetmanmon makes sure only one _old is not empty. In other words
-		// every event contains only one change.
 		"filter": {
 			"ifname_old": "^$" // empty => if not renamed
 			,"address": "^$" // some interfaces like the loopback don't have a MAC
