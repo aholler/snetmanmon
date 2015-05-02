@@ -539,7 +539,7 @@ static void link_del(const nlmsghdr* hdr)
 	// might not have received such an event.
 	auto found = map_idx_addrs.find(idx);
 	if (found != map_idx_addrs.cend())
-		for (auto addr = found->second.begin(); addr != found->second.cend(); ++addr) {
+		for (auto addr = found->second.cbegin(); addr != found->second.cend(); ++addr) {
 			EventAddr evt_addr;
 			evt_addr.ifname = evt.ifname;
 			evt_addr.address = addr->to_string();
