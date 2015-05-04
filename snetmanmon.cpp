@@ -337,19 +337,6 @@ static void parse_link(const nlmsghdr* hdr, EventLink& evt)
 	}
 }
 
-static std::string build_link_string(const EventLink& evt, const std::string& s, const std::string& etype)
-{
-	std::string result(s);
-	stringReplace(result, "%a", evt.address);
-	stringReplace(result, "%A", evt.address_old);
-	stringReplace(result, "%e", etype);
-	stringReplace(result, "%i", evt.ifname);
-	stringReplace(result, "%I", evt.ifname_old);
-	stringReplace(result, "%s", evt.state);
-	stringReplace(result, "%S", evt.state_old);
-	return result;
-}
-
 typedef SafeQueue<std::string> QueueStrings;
 static QueueStrings queue_execs;
 static std::thread exec_thread;
@@ -380,13 +367,38 @@ static void do_action(const Action& action, std::string&& str)
 		std::cout << std::move(str) << '\n';
 }
 
-static void do_link_actions(const EventLink& evt, const std::string& etype, const Actions& actions)
+static std::string build_string(const EventLink& evt, const std::string& s, const std::string& etype)
+{
+	std::string result(s);
+	stringReplace(result, "%a", evt.address);
+	stringReplace(result, "%A", evt.address_old);
+	stringReplace(result, "%e", etype);
+	stringReplace(result, "%i", evt.ifname);
+	stringReplace(result, "%I", evt.ifname_old);
+	stringReplace(result, "%s", evt.state);
+	stringReplace(result, "%S", evt.state_old);
+	return result;
+}
+
+static std::string build_string(const EventAddr& evt, const std::string& s, const std::string& etype)
+{
+	std::string result(s);
+	stringReplace(result, "%a", evt.address);
+	stringReplace(result, "%b", evt.broadcast);
+	stringReplace(result, "%e", etype);
+	stringReplace(result, "%i", evt.ifname);
+	stringReplace(result, "%t", (evt.type_v6 ? "v6" : "v4"));
+	return result;
+}
+
+template <class E>
+static void do_actions(const E& evt, const std::string& etype, const Actions& actions)
 {
 	auto end = actions.cend();
 	for (auto i = actions.cbegin(); i != end; ++i) {
 		if (i->str.empty())
 			continue;
-		std::string str(build_link_string(evt, i->str, etype));
+		std::string str(build_string(evt, i->str, etype));
 		do_action(*i, std::move(str));
 	}
 }
@@ -415,12 +427,26 @@ static bool filter_matches(const EventLink& evt, const FilterLink& filter)
 	return true;
 }
 
-static void do_link_filters(const EventLink& evt, const std::string& etype, const FiltersLink& filters)
+static bool filter_matches(const EventAddr& evt, const FilterAddress& filter)
+{
+	if (!is_empty_or_matches(filter.ifname, evt.ifname))
+		return false;
+	if (!is_empty_or_matches(filter.address, evt.address))
+		return false;
+	if (!is_empty_or_matches(filter.broadcast, evt.broadcast))
+		return false;
+	if (!filter.type.empty() && filter.type != (evt.type_v6 ? "v6" : "v4"))
+		return false;
+	return true;
+}
+
+template <class E, class F>
+static void do_filters(const E& evt, const std::string& etype, const F& filters)
 {
 	auto end = filters.cend();
 	for (auto i = filters.cbegin(); i != end; ++i)
 		if (filter_matches(evt, *i))
-			do_link_actions(evt, etype, i->actions);
+			do_actions(evt, etype, i->actions);
 }
 
 static void link_new(const nlmsghdr* hdr)
@@ -434,8 +460,8 @@ static void link_new(const nlmsghdr* hdr)
 	auto inserted = map_idx_if.insert(std::pair<unsigned, Link>(idx, link));
 	if (inserted.second) {
 		// New link (interface), submit the event, done.
-		do_link_actions(evt, "link_new", settings.actions_link_new);
-		do_link_filters(evt, "link_new", settings.filters_link_new);
+		do_actions(evt, "link_new", settings.actions_link_new);
+		do_filters(evt, "link_new", settings.filters_link_new);
 		return;
 	}
 	// Link (interface) already exists.
@@ -466,8 +492,8 @@ static void link_new(const nlmsghdr* hdr)
 		evt_old.ifname = evt.ifname;
 		evt_old.ifname_old = inserted.first->second.ifname;
 		inserted.first->second.ifname = evt.ifname;
-		do_link_actions(evt_old, "link_new", settings.actions_link_new);
-		do_link_filters(evt_old, "link_new", settings.filters_link_new);
+		do_actions(evt_old, "link_new", settings.actions_link_new);
+		do_filters(evt_old, "link_new", settings.filters_link_new);
 		evt_old.ifname_old.clear();
 	}
 	if (evt.state != inserted.first->second.state) {
@@ -475,59 +501,16 @@ static void link_new(const nlmsghdr* hdr)
 		evt_old.state = evt.state;
 		evt_old.state_old = inserted.first->second.state;
 		inserted.first->second.state = evt.state;
-		do_link_actions(evt_old, "link_new", settings.actions_link_new);
-		do_link_filters(evt_old, "link_new", settings.filters_link_new);
+		do_actions(evt_old, "link_new", settings.actions_link_new);
+		do_filters(evt_old, "link_new", settings.filters_link_new);
 		//evt_old.state_old.clear();
 	}
 	if (evt.address != inserted.first->second.address) {
 		// MAC changed
 		inserted.first->second.address = evt.address;
-		do_link_actions(evt, "link_new", settings.actions_link_new);
-		do_link_filters(evt, "link_new", settings.filters_link_new);
+		do_actions(evt, "link_new", settings.actions_link_new);
+		do_filters(evt, "link_new", settings.filters_link_new);
 	}
-}
-
-static std::string build_addr_string(const EventAddr& evt, const std::string& s, const std::string& etype)
-{
-	std::string result(s);
-	stringReplace(result, "%a", evt.address);
-	stringReplace(result, "%b", evt.broadcast);
-	stringReplace(result, "%e", etype);
-	stringReplace(result, "%i", evt.ifname);
-	stringReplace(result, "%t", (evt.type_v6 ? "v6" : "v4"));
-	return result;
-}
-
-static void do_addr_actions(const EventAddr& evt, const std::string& etype, const Actions& actions)
-{
-	auto end = actions.cend();
-	for (auto i = actions.cbegin(); i != end; ++i) {
-		if (i->str.empty())
-			continue;
-		std::string str(build_addr_string(evt, i->str, etype));
-		do_action(*i, std::move(str));
-	}
-}
-
-static bool filter_matches(const EventAddr& evt, const FilterAddress& filter)
-{
-	if (!is_empty_or_matches(filter.ifname, evt.ifname))
-		return false;
-	if (!is_empty_or_matches(filter.address, evt.address))
-		return false;
-	if (!is_empty_or_matches(filter.broadcast, evt.broadcast))
-		return false;
-	if (!filter.type.empty() && filter.type != (evt.type_v6 ? "v6" : "v4"))
-		return false;
-	return true;
-}
-
-static void do_addr_filters(const EventAddr& evt, const std::string& etype, const FiltersAddress& filters)
-{
-	auto end = filters.cend();
-	for (auto i = filters.cbegin(); i != end; ++i)
-		if (filter_matches(evt, *i))
-			do_addr_actions(evt, etype, i->actions);
 }
 
 static void link_del(const nlmsghdr* hdr)
@@ -544,13 +527,13 @@ static void link_del(const nlmsghdr* hdr)
 			evt_addr.ifname = evt.ifname;
 			evt_addr.address = addr->to_string();
 			evt_addr.type_v6 = addr->is_v6();
-			do_addr_actions(evt_addr, "addr_del", settings.actions_addr_del);
-			do_addr_filters(evt_addr, "addr_del", settings.filters_addr_del);
+			do_actions(evt_addr, "addr_del", settings.actions_addr_del);
+			do_filters(evt_addr, "addr_del", settings.filters_addr_del);
 		}
 	map_idx_addrs.erase(idx);
 	map_idx_if.erase(idx);
-	do_link_actions(evt, "link_del", settings.actions_link_del);
-	do_link_filters(evt, "link_del", settings.filters_link_del);
+	do_actions(evt, "link_del", settings.actions_link_del);
+	do_filters(evt, "link_del", settings.filters_link_del);
 }
 
 static std::string ifname(unsigned int idx)
@@ -600,8 +583,8 @@ static void addr_new(const nlmsghdr* hdr)
 	if (found != map_idx_addrs.cend()) {
 		auto inserted = found->second.insert(boost::asio::ip::address::from_string(evt.address));
 		if (inserted.second) {
-			do_addr_actions(evt, "addr_new", settings.actions_addr_new);
-			do_addr_filters(evt, "addr_new", settings.filters_addr_new);
+			do_actions(evt, "addr_new", settings.actions_addr_new);
+			do_filters(evt, "addr_new", settings.filters_addr_new);
 		}
 	}
 }
@@ -614,8 +597,8 @@ static void addr_del(const nlmsghdr* hdr)
 	auto found = map_idx_addrs.find(idx);
 	if (found != map_idx_addrs.cend()) {
 		found->second.erase(boost::asio::ip::address::from_string(evt.address));
-		do_addr_actions(evt, "addr_del", settings.actions_addr_del);
-		do_addr_filters(evt, "addr_del", settings.filters_addr_del);
+		do_actions(evt, "addr_del", settings.actions_addr_del);
+		do_filters(evt, "addr_del", settings.filters_addr_del);
 	}
 }
 
@@ -644,8 +627,8 @@ static void generate_evt_link(const Link& link)
 	evt.ifname = link.ifname;
 	evt.address = link.address;
 	evt.state = link.state;
-	do_link_actions(evt, "link_new", settings.actions_link_new);
-	do_link_filters(evt, "link_new", settings.filters_link_new);
+	do_actions(evt, "link_new", settings.actions_link_new);
+	do_filters(evt, "link_new", settings.filters_link_new);
 }
 
 static void generate_evt_addr(const std::string& ifname, const boost::asio::ip::address&& addr, std::string&& broadcast)
@@ -655,8 +638,8 @@ static void generate_evt_addr(const std::string& ifname, const boost::asio::ip::
 	evt.address = addr.to_string();
 	evt.broadcast = std::move(broadcast);
 	evt.type_v6 = addr.is_v6();
-	do_addr_actions(evt, "addr_new", settings.actions_addr_new);
-	do_addr_filters(evt, "addr_new", settings.filters_addr_new);
+	do_actions(evt, "addr_new", settings.actions_addr_new);
+	do_filters(evt, "addr_new", settings.filters_addr_new);
 }
 
 static void populate_ifs(void)
