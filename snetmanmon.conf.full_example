@@ -1,0 +1,390 @@
+{
+// Example configuration for snetmanmon, a simple network manager and monitor.
+// (c) 2015 Alexander Holler
+
+// This example configuration logs all events to the kernel ring buffer.
+// It includes several examples too to give an impression about the
+// possibilites snetmanmon offers.
+// Except logging, all examples are commented out (not active).
+
+// Because /dev/kmsg is usually only writable by root,
+// snetmanmon needs to run as root for this to work.
+// Most examples need root too, e.g. in order to configure
+// IP addresses and similar actions.
+
+"link_new_for_existing_links": "1", // default false/0
+"addr_new_for_existing_addresses": "true", // default false/0
+"pid_file": "/run/snetmanmon.pid", // default none
+
+// Currently there exists these events:
+//
+//	link_new
+//	link_del
+//	addr_new
+//	addr_del
+//
+// These actions are currently available:
+//
+//	stdout		Prints a message on stdout.
+//	exec		Executes something in a separate thread.
+//	exec_seq	Executes something by using a special thread for all
+//			actions of type exec_seq. That means these actions are
+//			serialized and a new action happens only after the
+//			action before has terminated.
+//
+// Filters for link events can have the following properties (all are regular
+// expressions):
+//
+//	ifname		The name of the interface.
+//	address		The MAC of the interface (not everyone has one). The
+//			format is always aa:bb:cc:dd:ee:ff (lower case and
+//			single digit values will always have a leading zero).
+//	state		The state of the interface, this can be
+//			unknown, notpresent, down, lowerlayerdown, testing,
+//			dormant or up. The state in events generated for
+//			interfaces which already existed at startup will be
+//			only up or down.
+//	ifname_old	Contains the old name if a change of the name occured.
+//	address_old	Contains the old MAC if a change of the MAC occured.
+//	state_old	Contains the old state if a change of the state occured.
+//
+// snetmanmon makes sure only one _old is not empty.
+// In other words every event contains only one change.
+//
+// The following special variables can be used in actions for filter events:
+//
+//	%e 		Name of the event.
+//	%i		Name of the interface.
+//	%I		Old name (if changed)
+//	%a		MAC of the interface.
+//	%A		Old MAC (if changed).
+//	%s		State of the interface.
+//	%S		Old state (if changed).
+//
+// Filters for address events can have the following properties:
+//
+//	ifname		The name of the interface.
+//	address		The IP (either v4 or v6).
+//	broadcast	The broadcast address (only for IPv4 addresses).
+//	type		Type of the IP (either v4 or v6).
+//
+// Except the type, all of these properties are regular expressions too.
+//
+// The following special variables can be used in actions for address events:
+//
+//	%e 		Name of the event.
+//	%i		Name of the interface.
+//	%a		The IP.
+//	%b		The broadcast address.
+//	%t		They type of the IP.
+//
+// All regular expressions have to be in the Perl syntax, which is the same
+// as used in JavaScript. For documentation have a look at
+// http://www.boost.org/doc/libs/1_58_0/libs/regex/doc/html/boost_regex/syntax/perl_syntax.html
+
+"events": {
+	"link_new": {
+		"filter": {
+			"ifname_old": "^$" // empty => if not renamed
+			,"address": "^$" // some interfaces like the loopback don't have a MAC
+			,"address_old": "^$" // MAC hasn't changed
+			,"state_old": "^$" // State hasn't changed
+			,"actions": {
+				"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: New interface '%i' (state %s)\""
+			}
+		}
+		,"filter": {
+			"ifname_old": "^$"
+			,"address": ".+" // Require MAC
+			,"address_old": "^$"
+			,"state_old": "^$"
+			,"actions": {
+				"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: New interface '%i' (state %s, MAC %a)\""
+			}
+		}
+		,"filter": {
+			"ifname_old": ".+" // not empty => if renamed
+			,"address": "^$"
+			,"actions": {
+				"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: Interface '%I' was renamed to '%i' (state %s)\""
+			}
+		}
+		,"filter": {
+			"ifname_old": ".+"
+			,"address": ".+"
+			,"actions": {
+				"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: Interface '%I' was renamed to '%i' (MAC %a, state %s)\""
+			}
+		}
+		,"filter": {
+			"state_old": ".+" // not empty => state changed
+			,"address": "^$"
+			,"actions": {
+				"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: Interface '%i' changed state from %S to %s\""
+			}
+		}
+		,"filter": {
+			"state_old": ".+"
+			,"address": ".+"
+			,"actions": {
+				"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: Interface '%i' (MAC %a) changed state from %S to %s\""
+			}
+		}
+		,"filter": {
+			"address_old": ".+"
+			,"address": ".+"
+			,"actions": {
+				"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: MAC changed on interface %i from %A to %a (state %s)\""
+			}
+		}
+		// We assume a MAC can't be added or removed from an interface,
+		// that means it either has MAC right from it's appearance or it doesn't.
+	}
+	,"link_del": {
+		"actions": {
+			"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: Interface '%i' was deleted\""
+		}
+	}
+	,"addr_new": {
+		"filter": {
+			"broadcast": ".+"
+			,"actions": {
+				"exec_seq": "test -w /dev/kmsg loggerlogger echo >/dev/kmsg \"New IP%t %a on interface '%i' (broadcast %b)\""
+			}
+		}
+		,"filter": {
+			"broadcast": "^$"
+			,"actions": {
+				"exec_seq": "test -w /dev/kmsg loggerlogger echo >/dev/kmsg \"New IP%t %a on interface '%i'\""
+			}
+		}
+	}
+	,"addr_del": {
+		"actions": {
+			"exec_seq": "test -w /dev/kmsg loggerlogger echo >/dev/kmsg \"IP%t %a on interface '%i' was deleted\""
+		}
+	}
+
+	// Like with filters and actions, it's possible to have multiple
+	// sections for the same event. This is handy to group events by
+	// functionality as done in the following examples. In contrast
+	// to the above logging rules, all the following examples are
+	// commented out.
+
+	// Note: All MACs, IPs and domain names in the examples are bogus
+	// (reserved for documentation).
+	// See the RFCs 7042, 5737, 3849 and 2606.
+
+
+	/* all examples are disabled by default
+
+
+	//////////////////////////////////////////////////////////////////
+	// Example:
+	// Configure a static IP and route when an interface appears.
+	//////////////////////////////////////////////////////////////////
+	,"link_new": {
+		"filter": {
+			"ifname": "eth0"
+			,"ifname_old": "^$"// empty => not if the interface was renamed
+			,"address_old": "^$" // empty => not if a MAC change occured
+			,"state_old": "^$" // empty => not if a state change occured
+			,"actions": {
+				// Configure a static IP
+				"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: Configuring 192.0.2.2/24 on interface '%i'\""
+				,"exec_seq": "ip addr add 192.0.2.2/24 broadcast 192.0.2.255 dev %i"
+			}
+		}
+	}
+	,"addr_new": {
+		"filter": {
+			"address": "192.0.2.2"
+			,"actions": {
+				// Turn on the interface and configure a static route
+				"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: Configuring default route (192.0.2.1 on interface '%i')\""
+				,"exec_seq": "ip link set up dev %i; ip route add default via 192.0.2.1 dev %i"
+			}
+		}
+	}
+
+	//////////////////////////////////////////////////////////////////
+	// Example:
+	// Use DHCP to configure an interface.
+	//////////////////////////////////////////////////////////////////
+	,"link_new": {
+		"filter": {
+			"ifname": "eth1"
+			,"ifname_old": "^$"
+			,"address_old": "^$"
+			,"state": "up" // Start the DHCP-client only if the state is up.
+				       // Depending on the driver and system behaviour,
+				       // a better approach might be to use "state_old": "^$"
+				       // in order to start the DHCP-client whenever an
+				       // interface appears.
+			,"actions": {
+				// Start a DHCP-client on that interface.
+				// Note that the option -b for dhcpcd puts it into the background immediately.
+				// Without that we should use exec instead of exec_seq in order to not
+				// block the execution queue.
+				"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: Starting DHCP on interface '%i'\""
+				,"exec_seq": "dhcpcd -z %i -b -t 60 %i"
+			}
+		}
+		,"filter": {
+			"ifname": "eth1"
+			,"ifname_old": "^$"
+			,"address_old": "^$"
+			,"state": "down"
+			,"state_old": "^(?!down).+" // Stop the DHCP-client only if the interface changed to down.
+						    // This regular expression means the old state has to be
+						    // something else than down. Just a test if the old state
+						    // isn't empty would work here too.
+			,"actions": {
+				// Stop the DHCP-client on that interface.
+				"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: Stopping DHCP on interface '%i'\""
+				,"exec_seq": "dhcpcd --release %i"
+			}
+		}
+	}
+	,"link_del": {
+		// An interface might disappear without going down before.
+		"filter": {
+			"ifname": "eth1"
+			,"actions": {
+				// Stop the DHCP-client on that interface.
+				"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: Stopping DHCP on interface '%i'\""
+				,"exec_seq": "dhcpcd --release %i"
+			}
+		}
+	}
+
+	//////////////////////////////////////////////////////////////////
+	// Example:
+	// Set the host and domain name and fetch the time if the system
+	// connects to some network(s).
+	//////////////////////////////////////////////////////////////////
+	,"addr_new": {
+		"filter": {
+			"address": "192.0.2.3|2001:db8::3"
+			,"actions": {
+				// Set the host and domain name'.
+				"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: Setting host and domain name to snetmanmon.example (IP%t %a on interface '%i' appeared)\""
+				,"exec_seq": "hostname snetmanmon; domainname example"
+				// Fetch the time from the host 'time.example'.
+				,"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: Fetching time from host 'time.example' (IP%t %a on interface '%i' appeared)\""
+				// We are using nohup together with & to move ntpdate to the background
+				// in order to not block the execution queue.
+				,"exec_seq": "nohup >/dev/null 2>&1 ntpdate time.example &"
+			}
+		}
+	}
+
+	//////////////////////////////////////////////////////////////////
+	// Example:
+	// Configure simple traffic shapping on all interfaces.
+	//////////////////////////////////////////////////////////////////
+	,"link_new": {
+		"filter": {
+			"state_old": "^$"
+			,"address_old": "^$"
+			// This is a good example to explain possible race conditions when
+			// dealing with interfaces which will be renamed.
+			// The following might happen:
+			//   - Interface appears as usb0.
+			//   - snetmanmon receives an netlink event and starts the action.
+			//   - Interface usb0 will be renamed to enp0s29u1u2.
+			//   - The action will executed and fails because usb0 doesnt't exist
+			//     anymore (because it already got renamed).
+			// Therefor these actions will be executed after (possible) name changes
+			// again.
+			//,"ifname_old": "^$" // do not use this here
+			,"actions": {
+				// Configure simple traffic shaping.
+				"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: Configuring traffic shaping on interface '%i'\""
+				,"exec_seq": "tc qdisc add dev %i root sfq perturb 10"
+			}
+		}
+	}
+
+	//////////////////////////////////////////////////////////////////
+	// Example:
+	// WLAN. In order to avoid problems with multiple WLAN devices
+	// (e.g. USB dongles), only one MAC will be handled. Regardless
+	// which name the interface has.
+	//////////////////////////////////////////////////////////////////
+	,"link_new": {
+		"filter": {
+			"ifname_old": "^$"
+			,"address": "00:00:5e:00:53:01" // The MAC
+			,"address_old": "^$"
+			,"state_old": "^$"
+			,"actions": {
+				// Start wpa_supplicant
+				"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: Starting wpa_supplicant (interface '%i' appeared)\""
+				,"exec_seq": "wpa_supplicant -D wext -i %i -c /usr/local/etc/wpa.conf -B -P /run/wpa_supplicant.pid"
+			}
+		}
+		,"filter": {
+			"ifname_old": "^$"
+			,"address": "00:00:5e:00:53:01"
+			,"address_old": "^$"
+			,"state": "up"
+			,"actions": {
+				// Start a DHCP-client on that interface.
+				"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: Starting DHCP on interface '%i'\""
+				,"exec_seq": "dhcpcd -z %i -b -t 60 %i"
+			}
+		}
+		,"filter": {
+			"address": "00:00:5e:00:53:01"
+			,"state": "down"
+			,"state_old": "up"
+			,"actions": {
+				// Stop the DHCP-client on that interface.
+				"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: Stopping DHCP on interface '%i'\""
+				,"exec_seq": "dhcpcd --release %i"
+			}
+		}
+	}
+	,"link_del": {
+		"filter": {
+			"address": "00:00:5e:00:53:01"
+			,"actions": {
+				// Stop the DHCP-client on that interface.
+				"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: Stopping DHCP on interface '%i'\""
+				,"exec_seq": "dhcpcd --release %i"
+				// Stop wpa_supplicant
+				,"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: Stopping wpa_supplicant (interface '%i' disappeared)\""
+				,"exec_seq": "test -w /run/wpa_supplicant.pid && kill $(cat /run/wpa_supplicant.pid)"
+			}
+		}
+	}
+
+	//////////////////////////////////////////////////////////////////
+	// Example:
+	// Start a backup if the system connects to a special network
+	// using the interface eth0.
+	//////////////////////////////////////////////////////////////////
+	,"addr_new": {
+		"filter": {
+			"ifname": "eth0"
+			,"address": "2001:db8::4"
+			,"actions": {
+				// Start backup
+				"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: Starting backup (IP%t %a on interface '%i' appeared)\""
+				// Because the backup is not explicitly stopped,
+				// make sure you're using something like flock(1)
+				// in order to avoid starting it multiple times
+				// if the network will go down and up again
+				// while the backup still runs.
+				,"exec_seq": "nohup >/dev/null 2>&1 /usr/local/sbin/make_backup.sh &"
+			}
+		}
+	}
+
+
+	*/ // end of disabled examples
+
+
+} // events
+}
