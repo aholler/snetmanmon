@@ -12,7 +12,8 @@ connman and similiar tools, which all lacked some functionality I wanted.
 
 
 In particular it makes it possible to not only react on (dis)appearing
-interfaces, but also on (dis)appearing IPs.
+interfaces, but also on (dis)appearing IPs, besides the possibility
+to do actions based on the MAC of an interface too.
 
 Furthermore it's a tool to keep track (logging) of changes in regard
 to interfaces and IP addresses on a machine. Something which becomes
@@ -31,6 +32,9 @@ NTP-client only if the IP i.j.k.m (or i::*) appears on interface
 ethN, this is easy possible to do with snetmanmon too. In short,
 if you have a ThingOfInternets (ToI) instead of an IoT,
 snetmanmon might be the right tool too.
+
+Have a look at the file snetmanmon.conf.full_example for
+documentation.
 
 Why is it called simple? Because it almost doesn't do any actions
 itself. E.g. It doesn't configure network interfaces nor does it
