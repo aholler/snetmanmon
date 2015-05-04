@@ -507,6 +507,7 @@ static void link_new(const nlmsghdr* hdr)
 	}
 	if (evt.address != inserted.first->second.address) {
 		// MAC changed
+		evt.address_old = inserted.first->second.address;
 		inserted.first->second.address = evt.address;
 		do_actions(evt, "link_new", settings.actions_link_new);
 		do_filters(evt, "link_new", settings.filters_link_new);
