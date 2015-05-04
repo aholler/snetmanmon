@@ -382,6 +382,31 @@
 		}
 	}
 
+	//////////////////////////////////////////////////////////////////
+	// Example:
+	// Debug. Log all properties for every reported event.
+	//////////////////////////////////////////////////////////////////
+	,"link_new": {
+		"actions": {
+			"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: e:'%e' i:'%i' I:'%I' a:'%a' A:'%A' s:'%s' S:'%S'\""
+		}
+	}
+	,"link_del": {
+		"actions": {
+			"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: e:'%e' i:'%i' I:'%I' a:'%a' A:'%A' s:'%s' S:'%S'\""
+		}
+	}
+	,"addr_new": {
+		"actions": {
+			"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: e:'%e' i:'%i' t:'%t' a:'%a' b:'%b'\""
+		}
+	}
+	,"addr_del": {
+		"actions": {
+			"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: e:'%e' i:'%i' t:'%t' a:'%a' b:'%b'\""
+		}
+	}
+
 
 	*/ // end of disabled examples
 
