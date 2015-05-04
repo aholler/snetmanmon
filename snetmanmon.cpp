@@ -60,7 +60,7 @@ static void print_ifs(void)
 			"' MAC " << i->second.address << "\n";
 	auto end_ifs = map_idx_addrs.cend();
 	for (auto i = map_idx_addrs.cbegin(); i != end_ifs; ++i) {
-    		std::cout << "idx " << i->first << "\n";
+		std::cout << "idx " << i->first << "\n";
 		auto end_addrs = i->second.cend();
 		for (auto j = i->second.cbegin(); j != end_addrs; ++j)
 			std::cout << "\taddr " << j->to_string() << '\n';
@@ -203,10 +203,10 @@ static void add_regex(const boost::property_tree::ptree::const_assoc_iterator& i
 
 static void add_link_events(const boost::property_tree::ptree& pt, std::string&& ltype, Actions& actions, FiltersLink& filters_link)
 {
-        auto events = pt.equal_range(std::move(ltype));
+	auto events = pt.equal_range(std::move(ltype));
 	for (auto it = events.first; it != events.second; ++it ) {
 		add_actions(it->second, actions);
-        	auto filters = it->second.equal_range("filter");
+		auto filters = it->second.equal_range("filter");
 		for (auto itf = filters.first; itf != filters.second; ++itf ) {
 			FilterLink filter;
 			add_regex(itf, "ifname", filter.ifname);
@@ -223,10 +223,10 @@ static void add_link_events(const boost::property_tree::ptree& pt, std::string&&
 
 static void add_address_events(const boost::property_tree::ptree& pt, std::string&& atype, Actions& actions, FiltersAddress& filters_address)
 {
-        auto events = pt.equal_range(std::move(atype));
+	auto events = pt.equal_range(std::move(atype));
 	for (auto it = events.first; it != events.second; ++it ) {
 		add_actions(it->second, actions);
-        	auto filters = it->second.equal_range("filter");
+		auto filters = it->second.equal_range("filter");
 		for (auto itf = filters.first; itf != filters.second; ++itf ) {
 			FilterAddress filter;
 			add_regex(itf, "ifname", filter.ifname);
