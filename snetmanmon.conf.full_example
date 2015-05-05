@@ -138,7 +138,7 @@
 			}
 		}
 		// We assume a MAC can't be added or removed from an interface,
-		// that means it either has MAC right from it's appearance or it doesn't.
+		// that means it either has a MAC right from it's appearance or it doesn't.
 	}
 	,"link_del": {
 		"actions": {
@@ -149,19 +149,19 @@
 		"filter": {
 			"broadcast": ".+"
 			,"actions": {
-				"exec_seq": "test -w /dev/kmsg loggerlogger echo >/dev/kmsg \"New IP%t %a on interface '%i' (broadcast %b)\""
+				"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: New IP%t %a on interface '%i' (broadcast %b)\""
 			}
 		}
 		,"filter": {
 			"broadcast": "^$"
 			,"actions": {
-				"exec_seq": "test -w /dev/kmsg loggerlogger echo >/dev/kmsg \"New IP%t %a on interface '%i'\""
+				"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: New IP%t %a on interface '%i'\""
 			}
 		}
 	}
 	,"addr_del": {
 		"actions": {
-			"exec_seq": "test -w /dev/kmsg loggerlogger echo >/dev/kmsg \"IP%t %a on interface '%i' was deleted\""
+			"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: IP%t %a on interface '%i' was deleted\""
 		}
 	}
 
