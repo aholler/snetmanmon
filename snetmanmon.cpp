@@ -719,6 +719,8 @@ public:
 	}
 
 	void handle_receive_from(const boost::system::error_code& error, size_t bytes_recvd) {
+		if (error)
+			std::cerr << "Error receiving netlink message (" << error.message() << ")!\n";
 		const nlmsghdr* hdr = reinterpret_cast<const nlmsghdr*>(data_);
 		if (!error && bytes_recvd && !sender_endpoint_.pid())
 			for(; NLMSG_OK(hdr, bytes_recvd); hdr = NLMSG_NEXT(hdr, bytes_recvd))
