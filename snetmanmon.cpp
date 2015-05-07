@@ -622,6 +622,20 @@ static void link_del(const nlmsghdr* hdr)
 	EventLink evt;
 	parse_link(hdr, evt);
 	unsigned idx = static_cast<const ifinfomsg*>(NLMSG_DATA(hdr))->ifi_index;
+	// Make sure to send route_del events for any routes we
+	// might not have received such an event.
+	auto foundr = map_idx_routes.find(idx);
+	if (foundr != map_idx_routes.cend())
+		for (auto route = foundr->second.cbegin(); route != foundr->second.cend(); ++route) {
+			EventRoute evt_route;
+			evt_route.ifname = evt.ifname;
+			evt_route.address = route->destination;
+			evt_route.gateway = route->gateway;
+			evt_route.type_v6 = route->is_v6;
+			do_actions(evt_route, "route_del", settings.actions_route_del);
+			do_filters(evt_route, "route_del", settings.filters_route_del);
+		}
+	map_idx_routes.erase(idx);
 	// Make sure to send addr_del events for any addresses we
 	// might not have received such an event.
 	auto found = map_idx_addrs.find(idx);
@@ -635,18 +649,6 @@ static void link_del(const nlmsghdr* hdr)
 			do_filters(evt_addr, "addr_del", settings.filters_addr_del);
 		}
 	map_idx_addrs.erase(idx);
-	auto foundr = map_idx_routes.find(idx);
-	if (foundr != map_idx_routes.cend())
-		for (auto route = foundr->second.cbegin(); route != foundr->second.cend(); ++route) {
-			EventRoute evt_route;
-			evt_route.ifname = evt.ifname;
-			evt_route.address = route->destination;
-			evt_route.gateway = route->gateway;
-			evt_route.type_v6 = route->is_v6;
-			do_actions(evt_route, "route_del", settings.actions_route_del);
-			do_filters(evt_route, "route_del", settings.filters_route_del);
-		}
-	map_idx_routes.erase(idx);
 	map_idx_if.erase(idx);
 	do_actions(evt, "link_del", settings.actions_link_del);
 	do_filters(evt, "link_del", settings.filters_link_del);
