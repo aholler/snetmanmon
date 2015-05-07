@@ -543,12 +543,19 @@ static bool filter_matches(const EventRoute& evt, const FilterRoute& filter)
 }
 
 template <class E, class F>
-static void do_filters(const E& evt, const std::string& etype, const F& filters)
+static void do_filters(const E& evt, std::string&& etype, const F& filters)
 {
 	auto end = filters.cend();
 	for (auto i = filters.cbegin(); i != end; ++i)
 		if (filter_matches(evt, *i))
 			do_actions(evt, etype, i->actions);
+}
+
+template <class E, class F>
+static void do_event(const E& evt, std::string&& etype, const Actions& actions, const F& filters)
+{
+	do_actions(evt, etype, actions);
+	do_filters(evt, std::move(etype), filters);
 }
 
 static void link_new(const nlmsghdr* hdr)
@@ -563,8 +570,7 @@ static void link_new(const nlmsghdr* hdr)
 	auto inserted = map_idx_if.insert(std::pair<unsigned, Link>(idx, link));
 	if (inserted.second) {
 		// New link (interface), submit the event, done.
-		do_actions(evt, "link_new", settings.actions_link_new);
-		do_filters(evt, "link_new", settings.filters_link_new);
+		do_event(evt, "link_new", settings.actions_link_new, settings.filters_link_new);
 		return;
 	}
 	// Link (interface) already exists.
@@ -595,8 +601,7 @@ static void link_new(const nlmsghdr* hdr)
 		evt_old.ifname = evt.ifname;
 		evt_old.ifname_old = inserted.first->second.ifname;
 		inserted.first->second.ifname = evt.ifname;
-		do_actions(evt_old, "link_new", settings.actions_link_new);
-		do_filters(evt_old, "link_new", settings.filters_link_new);
+		do_event(evt_old, "link_new", settings.actions_link_new, settings.filters_link_new);
 		evt_old.ifname_old.clear();
 	}
 	if (evt.state != inserted.first->second.state) {
@@ -604,16 +609,14 @@ static void link_new(const nlmsghdr* hdr)
 		evt_old.state = evt.state;
 		evt_old.state_old = inserted.first->second.state;
 		inserted.first->second.state = evt.state;
-		do_actions(evt_old, "link_new", settings.actions_link_new);
-		do_filters(evt_old, "link_new", settings.filters_link_new);
+		do_event(evt_old, "link_new", settings.actions_link_new, settings.filters_link_new);
 		//evt_old.state_old.clear();
 	}
 	if (evt.address != inserted.first->second.address) {
 		// MAC changed
 		evt.address_old = inserted.first->second.address;
 		inserted.first->second.address = evt.address;
-		do_actions(evt, "link_new", settings.actions_link_new);
-		do_filters(evt, "link_new", settings.filters_link_new);
+		do_event(evt, "link_new", settings.actions_link_new, settings.filters_link_new);
 	}
 }
 
@@ -632,8 +635,7 @@ static void link_del(const nlmsghdr* hdr)
 			evt_route.address = route->destination;
 			evt_route.gateway = route->gateway;
 			evt_route.type_v6 = route->is_v6;
-			do_actions(evt_route, "route_del", settings.actions_route_del);
-			do_filters(evt_route, "route_del", settings.filters_route_del);
+			do_event(evt_route, "route_del", settings.actions_route_del, settings.filters_route_del);
 		}
 	map_idx_routes.erase(idx);
 	// Make sure to send addr_del events for any addresses we
@@ -645,13 +647,11 @@ static void link_del(const nlmsghdr* hdr)
 			evt_addr.ifname = evt.ifname;
 			evt_addr.address = addr->to_string();
 			evt_addr.type_v6 = addr->is_v6();
-			do_actions(evt_addr, "addr_del", settings.actions_addr_del);
-			do_filters(evt_addr, "addr_del", settings.filters_addr_del);
+			do_event(evt_addr, "addr_del", settings.actions_addr_del, settings.filters_addr_del);
 		}
 	map_idx_addrs.erase(idx);
 	map_idx_if.erase(idx);
-	do_actions(evt, "link_del", settings.actions_link_del);
-	do_filters(evt, "link_del", settings.filters_link_del);
+	do_event(evt, "link_del", settings.actions_link_del, settings.filters_link_del);
 }
 
 static std::string ifname(unsigned int idx)
@@ -700,10 +700,8 @@ static void addr_new(const nlmsghdr* hdr)
 	auto found = map_idx_addrs.find(idx);
 	if (found != map_idx_addrs.cend()) {
 		auto inserted = found->second.insert(boost::asio::ip::address::from_string(evt.address));
-		if (inserted.second) {
-			do_actions(evt, "addr_new", settings.actions_addr_new);
-			do_filters(evt, "addr_new", settings.filters_addr_new);
-		}
+		if (inserted.second)
+			do_event(evt, "addr_new", settings.actions_addr_new, settings.filters_addr_new);
 	}
 }
 
@@ -715,8 +713,7 @@ static void addr_del(const nlmsghdr* hdr)
 	auto found = map_idx_addrs.find(idx);
 	if (found != map_idx_addrs.cend()) {
 		found->second.erase(boost::asio::ip::address::from_string(evt.address));
-		do_actions(evt, "addr_del", settings.actions_addr_del);
-		do_filters(evt, "addr_del", settings.filters_addr_del);
+		do_event(evt, "addr_del", settings.actions_addr_del, settings.filters_addr_del);
 	}
 }
 
@@ -784,10 +781,8 @@ static void route_new(const nlmsghdr& hdr)
 	}
 	if (found != map_idx_routes.cend()) {
 		auto inserted = found->second.insert(Route(evt.address, evt.gateway, evt.type_v6));
-		if (inserted.second) {
-			do_actions(evt, "route_new", settings.actions_route_new);
-			do_filters(evt, "route_new", settings.filters_route_new);
-		}
+		if (inserted.second)
+			do_event(evt, "route_new", settings.actions_route_new, settings.filters_route_new);
 	}
 }
 
@@ -802,8 +797,7 @@ static void route_del(const nlmsghdr& hdr)
 	auto found = map_idx_routes.find(evt.if_idx);
 	if (found != map_idx_routes.cend()) {
 		found->second.erase(Route(evt.address, evt.gateway, false));
-		do_actions(evt, "route_del", settings.actions_route_del);
-		do_filters(evt, "route_del", settings.filters_route_del);
+		do_event(evt, "route_del", settings.actions_route_del, settings.filters_route_del);
 	}
 }
 
@@ -832,8 +826,7 @@ static void generate_evt_link(const Link& link)
 	evt.ifname = link.ifname;
 	evt.address = link.address;
 	evt.state = link.state;
-	do_actions(evt, "link_new", settings.actions_link_new);
-	do_filters(evt, "link_new", settings.filters_link_new);
+	do_event(evt, "link_new", settings.actions_link_new, settings.filters_link_new);
 }
 
 static void generate_evt_addr(const std::string& ifname, const boost::asio::ip::address&& addr, std::string&& broadcast)
@@ -843,8 +836,7 @@ static void generate_evt_addr(const std::string& ifname, const boost::asio::ip::
 	evt.address = addr.to_string();
 	evt.broadcast = std::move(broadcast);
 	evt.type_v6 = addr.is_v6();
-	do_actions(evt, "addr_new", settings.actions_addr_new);
-	do_filters(evt, "addr_new", settings.filters_addr_new);
+	do_event(evt, "addr_new", settings.actions_addr_new, settings.filters_addr_new);
 }
 
 static void populate_ifs(void)
