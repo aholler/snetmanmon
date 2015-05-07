@@ -34,7 +34,7 @@ src_compile() {
 
 src_install() {
 	VERBOSE=1 default
-	dodoc snetmanmon.conf.log_example snetmanmon.conf.klog_example snetmanmon.conf.simple_example
+	dodoc snetmanmon.conf.log_example snetmanmon.conf.klog_example snetmanmon.conf.simple_example snetmanmon.conf.debug_example
 	insinto /etc
 	newins snetmanmon.conf.full_example snetmanmon.conf
 	cat > snetmanmon.init << END
