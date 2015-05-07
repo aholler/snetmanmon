@@ -1,6 +1,7 @@
 {
 
-// Simple example which just outputs some message to stdout.
+// Simple example which just outputs some message to stdout
+// (with all properties for debugging purposes).
 
 "link_new_for_existing_links": "1", // default false/0
 "addr_new_for_existing_addresses": "true",
