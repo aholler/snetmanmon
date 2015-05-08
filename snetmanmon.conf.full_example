@@ -257,7 +257,10 @@
 	}
 	,"addr_new": {
 		"filter": {
-			"address": "192.0.2.2"
+			"address": "192.0.2.2" // Note: actually the dot here matches any character,
+					       // because this is an regular expression. But anything
+					       // else than a dot would not be an IP, so there
+					       // is no need to escape the dot here.
 			,"actions": {
 				// Turn on the interface and configure a static route
 				"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: Configuring default route (192.0.2.1 on interface '%i')\""
