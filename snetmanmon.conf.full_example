@@ -446,6 +446,60 @@
 
 	//////////////////////////////////////////////////////////////////
 	// Example:
+	// WLAN. Start hostapd and udhcpd if a specific dongle (MAC) is
+	// plugged in. This example is a bit more complicated and shows
+	// what's possible. (It's assumed that interface names are sane,
+	// e.g. that they don't contain a space.)
+	//////////////////////////////////////////////////////////////////
+	,"link_new": {
+		"filter": {
+			"ifname": ".+"
+			,"ifname_old": "^$"
+			//"ifname": ".+" // use this if the device will be renamed
+			//,"ifname_old": ".+" // use this if the device will be renamed
+			,"address": "00:00:5e:00:53:02" // The MAC of the dongle
+			,"address_old": "^$"
+			,"state_old": "^$"
+			,"actions": {
+				// Configure a static IP
+				"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: Configuring 198.51.100.1/24 on interface '%i'\""
+				,"exec_seq": "ip addr add 198.51.100.1/24 broadcast 198.51.100.255 dev %i"
+				// Start hostapad
+				,"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: Starting hostapd (interface '%i' appeared)\""
+				// It is assumed that /run is only writable by root, otherwise this could be
+				// a security problem.
+				// Make sure /etc/hostapd/hostapd.conf is only readable by root if it contains
+				// passwords or similiar!
+				,"exec_seq": "cp -a /etc/hostapd/hostapd.conf /run/hostapd_%i.conf"
+				,"exec_seq": "sed -e 's:^interface=.*:interface=%i:' -i /run/hostapd_%i.conf"
+				,"exec_seq": "hostapd -B -P /run/hostapd_%i.pid /run/hostapd_%i.conf"
+				// Start udhcpd
+				,"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: Starting udhcpd (interface '%i' appeared)\""
+				,"exec_seq": "cp -a /etc/udhcpd.conf /run/udhcpd_%i.conf"
+				,"exec_seq": "sed -e 's:^interface.*:interface %i:' -i /run/udhcpd_%i.conf"
+				,"exec_seq": "sed -e 's:^pidfile.*:pidfile /run/udhcpd_%i.pid:' -i /run/udhcpd_%i.conf"
+				,"exec_seq": "busybox udhcpd -S /run/udhcpd_%i.conf"
+			}
+		}
+	}
+	,"link_del": {
+		"filter": {
+			"address": "00:00:5e:00:53:02" // The MAC of the dongle
+			,"actions": {
+				// Stop hostapd
+				"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: Stopping hostapd on interface '%i'\""
+				,"exec_seq": "test -w /run/hostapd_%i.pid && kill $(cat /run/hostapd_%i.pid)"
+				,"exec_seq": "test -w /run/hostapd_%i.conf && rm /run/hostapd_%i.conf"
+				// Stop udhcpd
+				,"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: Stopping udhcpd on interface '%i'\""
+				,"exec_seq": "test -w /run/udhcpd_%i.pid && kill $(cat /run/udhcpd_%i.pid)"
+				,"exec_seq": "test -w /run/udhcpd_%i.conf && rm /run/udhcpd_%i.conf"
+			}
+		}
+	}
+
+	//////////////////////////////////////////////////////////////////
+	// Example:
 	// Debug. Log all properties for every reported event.
 	//////////////////////////////////////////////////////////////////
 	,"link_new": {
