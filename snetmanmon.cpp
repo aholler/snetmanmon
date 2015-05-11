@@ -225,6 +225,7 @@ class Settings {
 		bool addr_new_for_existing_addresses;
 		bool route_new_for_existing_routes;
 		std::string pid_file;
+		unsigned max_exec_queue_elements;
 		void load(const std::string& path);
 };
 
@@ -323,6 +324,9 @@ void Settings::load(const std::string& path)
 	addr_new_for_existing_addresses = pt.get<bool>("addr_new_for_existing_addresses", false);
 	route_new_for_existing_routes = pt.get<bool>("route_new_for_existing_routes", false);
 	pid_file = pt.get<std::string>("pid_file", "");
+	max_exec_queue_elements = pt.get<unsigned>("max_exec_queue_elements", 1000);
+	if (!max_exec_queue_elements)
+		throw std::invalid_argument("max_exec_queue_elements should never be 0");
 	boost::property_tree::ptree& events(pt.get_child("events"));
 	add_link_events(events, "link_new", actions_link_new, filters_link_new);
 	add_link_events(events, "link_del", actions_link_del, filters_link_del);
@@ -429,7 +433,10 @@ static void do_action(const Action& action, std::string&& str)
 		}, std::move(str));
 		t.detach();
 	} else if (action.type == Action::Type_exec_seq) {
-		queue_execs.enqueue(std::move(str));
+		if (!queue_execs.enqueue_if_below_max(std::move(str), settings.max_exec_queue_elements)) {
+			std::cerr << "Reached maximum number of queued exec_seq actions!\n";
+			return;
+		}
 		if (!exec_thread.joinable()) {
 			exec_thread = std::thread([](){
 				for (;;) {

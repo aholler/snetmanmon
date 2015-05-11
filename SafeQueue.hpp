@@ -16,6 +16,14 @@ public:
 		q.push(std::move(t));
 		c.notify_one();
 	}
+	bool enqueue_if_below_max(T&& t, size_t max) {
+		std::lock_guard<std::mutex> lock(m);
+		if (!q.empty() && q.size() >= max)
+			return false;
+		q.push(std::move(t));
+		c.notify_one();
+		return true;
+	}
 
 	T dequeue(void) {
 		std::unique_lock<std::mutex> lock(m);
