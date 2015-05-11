@@ -13,6 +13,7 @@
 #include <cassert>
 #include <thread>
 #include <cstdlib> // std::system
+#include <chrono>
 
 #include <boost/property_tree/json_parser.hpp>
 #include <boost/regex.hpp>
@@ -23,6 +24,9 @@
 #include "SafeQueue.hpp"
 #include "boost_asio_netlink_route.hpp"
 #include "version.h"
+
+static std::chrono::time_point<std::chrono::steady_clock> time_last_msg_exec_queue_overflow;
+static std::chrono::time_point<std::chrono::steady_clock> time_last_msg_max_routes;
 
 typedef std::set<boost::asio::ip::address> SetIps;
 typedef std::map<unsigned, SetIps> Map_idx_addrs;
@@ -226,7 +230,11 @@ class Settings {
 		bool route_new_for_existing_routes;
 		std::string pid_file;
 		unsigned max_exec_queue_elements;
+		std::string exec_max_exec_queue_elements;
+		unsigned freq_seconds_exec_max_exec_queue_elements;
 		unsigned max_routes_per_link;
+		std::string exec_max_routes_per_link;
+		unsigned freq_seconds_exec_max_routes_per_link;
 		void load(const std::string& path);
 };
 
@@ -328,7 +336,11 @@ void Settings::load(const std::string& path)
 	max_exec_queue_elements = pt.get<unsigned>("max_exec_queue_elements", 1000);
 	if (!max_exec_queue_elements)
 		throw std::invalid_argument("max_exec_queue_elements should never be 0");
+	exec_max_exec_queue_elements = pt.get<std::string>("exec_max_exec_queue_elements", "");
+	freq_seconds_exec_max_exec_queue_elements = pt.get<unsigned>("freq_seconds_exec_max_exec_queue_elements", 60);
 	max_routes_per_link = pt.get<unsigned>("max_routes_per_link", 1000);
+	exec_max_routes_per_link = pt.get<std::string>("exec_max_routes_per_link", "");
+	freq_seconds_exec_max_routes_per_link = pt.get<unsigned>("freq_seconds_exec_max_routes_per_link", 60);
 	boost::property_tree::ptree& events(pt.get_child("events"));
 	add_link_events(events, "link_new", actions_link_new, filters_link_new);
 	add_link_events(events, "link_del", actions_link_del, filters_link_del);
@@ -425,18 +437,34 @@ typedef SafeQueue<std::string> QueueStrings;
 static QueueStrings queue_execs;
 static std::thread exec_thread;
 
+static void exec(std::string &&str)
+{
+	std::thread t([](std::string&& s){
+		int unused __attribute__((unused));
+		unused = std::system(s.c_str());
+	}, std::move(str));
+	t.detach();
+}
+static void exec(const std::string &str)
+{
+	exec(std::string(str));
+}
+
 static void do_action(const Action& action, std::string&& str)
 {
 	assert(!str.empty());
-	if (action.type == Action::Type_exec) {
-		std::thread t([](std::string&& s){
-			int unused __attribute__((unused));
-			unused = std::system(s.c_str());
-		}, std::move(str));
-		t.detach();
-	} else if (action.type == Action::Type_exec_seq) {
+	if (action.type == Action::Type_exec)
+		exec(std::move(str));
+	else if (action.type == Action::Type_exec_seq) {
 		if (!queue_execs.enqueue_if_below_max(std::move(str), settings.max_exec_queue_elements)) {
-			std::cerr << "Reached maximum number of queued exec_seq actions!\n";
+			if (!settings.freq_seconds_exec_max_exec_queue_elements ||
+				std::chrono::steady_clock::now() - time_last_msg_exec_queue_overflow > std::chrono::seconds(settings.freq_seconds_exec_max_exec_queue_elements)) {
+				if (settings.exec_max_exec_queue_elements.empty())
+					std::cerr << "Reached maximum number of queued exec_seq actions!\n";
+				else
+					exec(settings.exec_max_exec_queue_elements);
+				time_last_msg_exec_queue_overflow = std::chrono::steady_clock::now();
+			}
 			return;
 		}
 		if (!exec_thread.joinable()) {
@@ -790,7 +818,17 @@ static void route_new(const nlmsghdr& hdr)
 	}
 	if (found != map_idx_routes.cend()) {
 		if (found->second.size() >= settings.max_routes_per_link) {
-			std::cerr << "Too many routes for '" << evt.ifname << "'!\n";
+			if (!settings.freq_seconds_exec_max_routes_per_link ||
+				std::chrono::steady_clock::now() - time_last_msg_max_routes > std::chrono::seconds(settings.freq_seconds_exec_max_routes_per_link)) {
+				if (settings.exec_max_routes_per_link.empty())
+					std::cerr << "Too many routes for '" << evt.ifname << "'!\n";
+				else {
+					std::string str(settings.exec_max_routes_per_link);
+					stringReplace(str, "%i", evt.ifname);
+					exec(std::move(str));
+				}
+				time_last_msg_max_routes = std::chrono::steady_clock::now();
+			}
 			return;
 		}
 		auto inserted = found->second.insert(Route(evt.address, evt.gateway, evt.type_v6));
