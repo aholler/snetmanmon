@@ -226,6 +226,7 @@ class Settings {
 		bool route_new_for_existing_routes;
 		std::string pid_file;
 		unsigned max_exec_queue_elements;
+		unsigned max_routes_per_link;
 		void load(const std::string& path);
 };
 
@@ -327,6 +328,7 @@ void Settings::load(const std::string& path)
 	max_exec_queue_elements = pt.get<unsigned>("max_exec_queue_elements", 1000);
 	if (!max_exec_queue_elements)
 		throw std::invalid_argument("max_exec_queue_elements should never be 0");
+	max_routes_per_link = pt.get<unsigned>("max_routes_per_link", 1000);
 	boost::property_tree::ptree& events(pt.get_child("events"));
 	add_link_events(events, "link_new", actions_link_new, filters_link_new);
 	add_link_events(events, "link_del", actions_link_del, filters_link_del);
@@ -787,6 +789,10 @@ static void route_new(const nlmsghdr& hdr)
 		found = inserted.first;
 	}
 	if (found != map_idx_routes.cend()) {
+		if (found->second.size() >= settings.max_routes_per_link) {
+			std::cerr << "Too many routes for '" << evt.ifname << "'!\n";
+			return;
+		}
 		auto inserted = found->second.insert(Route(evt.address, evt.gateway, evt.type_v6));
 		if (inserted.second)
 			do_event(evt, "route_new", settings.actions_route_new, settings.filters_route_new);
@@ -968,9 +974,13 @@ public:
 					addr_del(hdr);
 					break;
 				case RTM_NEWROUTE:
-					route_new(*hdr);
+					if (settings.max_routes_per_link)
+						route_new(*hdr);
 					break;
 				case RTM_DELROUTE:
+					// settings.max_routes_per_link might set to 0 by reloading
+					// the configuration, therefor we still (try to)
+					// delete routes.
 					route_del(*hdr);
 					break;
 				default:
