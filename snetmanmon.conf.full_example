@@ -109,6 +109,46 @@
 // All regular expressions have to be in the Perl syntax, which is the same
 // as used in JavaScript. For documentation have a look at
 // http://www.boost.org/doc/libs/1_58_0/libs/regex/doc/html/boost_regex/syntax/perl_syntax.html
+//
+//
+// If an action of type exec_seq blocks or if a large number of events do
+// happen, the internal queue used for actions of type exec_seq might quickly
+// grow which might finally end up with an fatal OOM (out of memory exception).
+// To avoid this, there exist a limit for how many actions of type exec_seq
+// are queued. If that limit is reached, new actions will be ignorded and
+// either a warning message is printed on stderr or a special action of
+// type exec is executed.
+//
+// The limit, default is 1000:
+//"max_exec_queue_elements": "100",
+//
+// The special action, default is none but a msg on stderr:
+"exec_max_exec_queue_elements": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: ...---...\"",
+//
+// The maximum frequency in seconds the special action will be executed,
+// the default is 60 seconds:
+//"freq_seconds_exec_max_exec_queue_elements": 0,
+//
+//
+// Unlike (dis)appearing interfaces and IP addresses, the source for route
+// events might be external, making a remote DOS possible (see e.g. RFC 6104).
+// Therefor there exists a limit for how many routes per link are stored in
+// the snetmanmon-internal database (which is used to consolidate and extend
+// netlink events in order to provide a more consistent set of events).
+//
+// The limit, default is 1000. If set to 0, no route_new events will happen,
+// but route_del events still might happen (if a route disappears after setting
+// this limit to 0 by reloading the configuration).
+//"max_routes_per_link": 0,
+//
+// A special action (of type exec) which will be executed if the limit
+// is reached, default is none but a msg on stderr:
+"exec_max_routes_per_link": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: Max. routes reached for interface '%i'!\"",
+//
+// The maximum frequency in seconds the special action will be executed,
+// the default is 60 seconds:
+//"freq_seconds_exec_max_routes_per_link": 0,
+
 
 "events": {
 	"link_new": {

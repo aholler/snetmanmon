@@ -11,6 +11,9 @@
 "route_new_for_existing_routes": "true", // default false/0
 "pid_file": "/run/snetmanmon.pid", // default none
 
+"exec_max_exec_queue_elements": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: ...---...\"",
+"exec_max_routes_per_link": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: Max. routes reached for interface '%i'!\"",
+
 "events": {
 	"link_new": {
 		"filter": {

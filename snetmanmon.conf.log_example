@@ -7,6 +7,9 @@
 "route_new_for_existing_routes": "true", // default false/0
 "pid_file": "/tmp/snetmanmon.pid", // default none
 
+"exec_max_exec_queue_elements": "logger \"snetmanmon: ...---...\"",
+"exec_max_routes_per_link": "logger \"snetmanmon: Max. routes reached for interface '%i'!\"",
+
 "events": {
 	"link_new": {
 		"filter": {
