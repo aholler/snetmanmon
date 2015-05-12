@@ -1,0 +1,24 @@
+#!/usr/bin/make -f
+# -*- makefile -*-
+
+export DEB_BUILD_MAINT_OPTIONS = hardening=+all
+
+%:
+	dh $@ --parallel --buildsystem=cmake
+
+override_dh_strip:
+	dh_strip --dbg-package=snetmanmon-dbg
+
+override_dh_auto_configure:
+	dh_auto_configure
+	git describe --tags --abbrev=4 HEAD > version
+
+override_dh_auto_install:
+	mkdir -p debian/snetmanmon/etc
+	cp snetmanmon.conf.full_example  debian/snetmanmon/etc/snetmanmon.conf
+	echo "   snetmanmon is copyright (c) 2015 by Alexander Holler" >debian/copyright
+	echo "" >>debian/copyright
+	echo "License:" >>debian/copyright
+	echo "" >>debian/copyright
+	cat LICENSE >> debian/copyright
+	dh_auto_install

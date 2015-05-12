@@ -1,0 +1,38 @@
+Source: snetmanmon
+Section: net
+Priority: optional
+Maintainer: Alexander Holler <holler@ahsoftware.de>
+Build-Depends: debhelper (>= 9), cmake (>= 2.8.4), libboost-dev, libboost-regex-dev, libboost-system-dev
+Standards-Version: 3.9.4
+Homepage: https://github.com/aholler/snetmanmon
+VCS-Git: git://github.com/aholler/snetmanmon.git
+VCS-Browser: https://github.com/aholler/snetmanmon
+
+Package: snetmanmon
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: simple network manager and monitor
+ snetmanmon is a simple alternative to ifupdown, ifplugd, networkmanager,
+ connman and similiar tools.
+ .
+ It makes it possible to not only react on (dis)appearing
+ interfaces, but also on (dis)appearing IPs and (dis)appearing routes,
+ besides the possibility to do actions based on the MAC of an interface
+ too.
+ .
+ Furthermore it's a tool to keep track (logging) of changes in regard
+ to interfaces, IP addresses and routes on a machine. Something which
+ becomes more important in times of virtual machines, containers and
+ software-defined networking (SDN) and which isn't supported by the
+ tools above.
+
+Package: snetmanmon-dbg
+Section: debug
+Priority: extra
+Architecture: any
+Depends: ${misc:Depends}, snetmanmon (= ${binary:Version})
+Description: simple network manager and monitor - debug symbols
+ snetmanmon is a simple alternative to ifupdown, ifplugd, networkmanager,
+ connman and similiar tools.
+ .
+ This package contains the debugging symbols. It is usually not needed.

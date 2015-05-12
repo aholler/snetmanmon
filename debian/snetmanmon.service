@@ -1,0 +1,14 @@
+[Unit]
+Description=snetmanmon
+After=network-pre.target
+ConditionFileNotEmpty=/etc/snetmanmon.conf
+
+[Service]
+ExecStart=/usr/bin/snetmanmon /etc/snetmanmon.conf
+ExecReload=/usr/bin/snetmanmon -t /etc/snetmanmon.conf
+ExecReload=/bin/kill -HUP $MAINPID
+KillMode=mixed
+
+[Install]
+WantedBy=multi-user.target
+Alias=snetmanmon.service

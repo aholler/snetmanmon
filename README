@@ -65,6 +65,13 @@ to test it (no special privileges are needed and nothing else will
 be executed).
 
 
+To build a package for Debian (tested with 8.0 (Jessie)), you need to
+install the packages build-essential, cmake, debhelper, libboost-dev,
+libboost-regex-dev and libboost-system-dev. Afterwards just call
+
+	dpkg-buildpackage -us -uc
+
+
 If you're missing features or want support, please keep in mind that
 the author built snetmanmon only to fulfill his own needs and that
 he doesn't care much for anything else (anymore) if it isn't payed.
