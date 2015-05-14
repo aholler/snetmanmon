@@ -120,14 +120,14 @@
 // type exec is executed.
 //
 // The limit, default is 1000:
-//"max_exec_queue_elements": "100",
+//"max_exec_queue_elements": "1000",
 //
 // The special action, default is none but a msg on stderr:
 "exec_max_exec_queue_elements": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: ...---...\"",
 //
 // The maximum frequency in seconds the special action will be executed,
-// the default is 60 seconds:
-//"freq_seconds_exec_max_exec_queue_elements": 0,
+// the default is max. once every 60 seconds:
+//"rate_limit_seconds_exec_max_exec_queue_elements": 60,
 //
 //
 // Unlike (dis)appearing interfaces and IP addresses, the source for route
@@ -139,15 +139,15 @@
 // The limit, default is 1000. If set to 0, no route_new events will happen,
 // but route_del events still might happen (if a route disappears after setting
 // this limit to 0 by reloading the configuration).
-//"max_routes_per_link": 0,
+//"max_routes_per_link": 1000,
 //
 // A special action (of type exec) which will be executed if the limit
 // is reached, default is none but a msg on stderr:
 "exec_max_routes_per_link": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: Max. routes reached for interface '%i'!\"",
 //
 // The maximum frequency in seconds the special action will be executed,
-// the default is 60 seconds:
-//"freq_seconds_exec_max_routes_per_link": 0,
+// the default is max. once every 60 seconds:
+//"rate_limit_seconds_exec_max_routes_per_link": 60,
 
 
 "events": {

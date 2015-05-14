@@ -231,10 +231,10 @@ class Settings {
 		std::string pid_file;
 		unsigned max_exec_queue_elements;
 		std::string exec_max_exec_queue_elements;
-		unsigned freq_seconds_exec_max_exec_queue_elements;
+		unsigned rate_limit_seconds_exec_max_exec_queue_elements;
 		unsigned max_routes_per_link;
 		std::string exec_max_routes_per_link;
-		unsigned freq_seconds_exec_max_routes_per_link;
+		unsigned rate_limit_seconds_exec_max_routes_per_link;
 		void load(const std::string& path);
 };
 
@@ -337,10 +337,10 @@ void Settings::load(const std::string& path)
 	if (!max_exec_queue_elements)
 		throw std::invalid_argument("max_exec_queue_elements should never be 0");
 	exec_max_exec_queue_elements = pt.get<std::string>("exec_max_exec_queue_elements", "");
-	freq_seconds_exec_max_exec_queue_elements = pt.get<unsigned>("freq_seconds_exec_max_exec_queue_elements", 60);
+	rate_limit_seconds_exec_max_exec_queue_elements = pt.get<unsigned>("rate_limit_seconds_exec_max_exec_queue_elements", 60);
 	max_routes_per_link = pt.get<unsigned>("max_routes_per_link", 1000);
 	exec_max_routes_per_link = pt.get<std::string>("exec_max_routes_per_link", "");
-	freq_seconds_exec_max_routes_per_link = pt.get<unsigned>("freq_seconds_exec_max_routes_per_link", 60);
+	rate_limit_seconds_exec_max_routes_per_link = pt.get<unsigned>("rate_limit_seconds_exec_max_routes_per_link", 60);
 	boost::property_tree::ptree& events(pt.get_child("events"));
 	add_link_events(events, "link_new", actions_link_new, filters_link_new);
 	add_link_events(events, "link_del", actions_link_del, filters_link_del);
@@ -457,8 +457,8 @@ static void do_action(const Action& action, std::string&& str)
 		exec(std::move(str));
 	else if (action.type == Action::Type_exec_seq) {
 		if (!queue_execs.enqueue_if_below_max(std::move(str), settings.max_exec_queue_elements)) {
-			if (!settings.freq_seconds_exec_max_exec_queue_elements ||
-				std::chrono::steady_clock::now() - time_last_msg_exec_queue_overflow > std::chrono::seconds(settings.freq_seconds_exec_max_exec_queue_elements)) {
+			if (!settings.rate_limit_seconds_exec_max_exec_queue_elements ||
+				std::chrono::steady_clock::now() - time_last_msg_exec_queue_overflow > std::chrono::seconds(settings.rate_limit_seconds_exec_max_exec_queue_elements)) {
 				if (settings.exec_max_exec_queue_elements.empty())
 					std::cerr << "Reached maximum number of queued exec_seq actions!\n";
 				else
@@ -818,8 +818,8 @@ static void route_new(const nlmsghdr& hdr)
 	}
 	if (found != map_idx_routes.cend()) {
 		if (found->second.size() >= settings.max_routes_per_link) {
-			if (!settings.freq_seconds_exec_max_routes_per_link ||
-				std::chrono::steady_clock::now() - time_last_msg_max_routes > std::chrono::seconds(settings.freq_seconds_exec_max_routes_per_link)) {
+			if (!settings.rate_limit_seconds_exec_max_routes_per_link ||
+				std::chrono::steady_clock::now() - time_last_msg_max_routes > std::chrono::seconds(settings.rate_limit_seconds_exec_max_routes_per_link)) {
 				if (settings.exec_max_routes_per_link.empty())
 					std::cerr << "Too many routes for '" << evt.ifname << "'!\n";
 				else {
