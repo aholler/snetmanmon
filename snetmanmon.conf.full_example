@@ -493,9 +493,8 @@
 	//////////////////////////////////////////////////////////////////
 	,"link_new": {
 		"filter": {
-			"ifname": ".+"
+			"ifname": "^(?!mon\\.).+" // ignore the hostapd ctrl_iface
 			,"ifname_old": "^$"
-			//"ifname": ".+" // use this if the device will be renamed
 			//,"ifname_old": ".+" // use this if the device will be renamed
 			,"address": "00:00:5e:00:53:02" // The MAC of the dongle
 			,"address_old": "^$"
@@ -524,7 +523,8 @@
 	}
 	,"link_del": {
 		"filter": {
-			"address": "00:00:5e:00:53:02" // The MAC of the dongle
+			"ifname": "^(?!mon\\.).+" // ignore the hostapd ctrl_iface
+			,"address": "00:00:5e:00:53:02" // The MAC of the dongle
 			,"actions": {
 				// Stop hostapd
 				"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: Stopping hostapd on interface '%i'\""
