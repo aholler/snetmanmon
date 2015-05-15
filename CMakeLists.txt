@@ -12,8 +12,14 @@ endif()
 
 SET(Boost_USE_STATIC_LIBS OFF)
 SET(Boost_USE_MULTITHREAD ON)
-find_package( Boost 1.35.0 COMPONENTS system regex)
-if (NOT Boost_SYSTEM_FOUND OR NOT Boost_REGEX_FOUND)
+
+find_package( Boost 1.50.0 COMPONENTS system regex)
+if (NOT Boost_FOUND)
+	message (FAtAL_ERROR
+		"You might go away with Boost < 1.50 by using\n"
+		"sed -e 's/std::make_pair(c.name, Str(b, e))/std::make_pair(c.name, Ptree(Str(b, e)))/' -i /usr/include/boost/property_tree/detail/json_parser_read.hpp\n"
+		"and by changing the version in CMakeLists.txt (see Boost bug #6785).\n")
+elseif (NOT Boost_SYSTEM_FOUND OR NOT Boost_REGEX_FOUND)
 	MESSAGE (FATAL_ERROR ${Boost_ERROR_REASON})
 endif()
 INCLUDE_DIRECTORIES(${Boost_INCLUDE_DIRS})
