@@ -119,8 +119,8 @@
 // either a warning message is printed on stderr or a special action of
 // type exec is executed.
 //
-// The limit, default is 1000:
-//"max_exec_queue_elements": "1000",
+// The limit, default is 1100:
+//"max_exec_queue_elements": "1100",
 //
 // The special action, default is none but a msg on stderr:
 "exec_max_exec_queue_elements": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: ...---...\"",

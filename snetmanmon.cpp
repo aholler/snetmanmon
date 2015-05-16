@@ -333,7 +333,7 @@ void Settings::load(const std::string& path)
 	addr_new_for_existing_addresses = pt.get<bool>("addr_new_for_existing_addresses", false);
 	route_new_for_existing_routes = pt.get<bool>("route_new_for_existing_routes", false);
 	pid_file = pt.get<std::string>("pid_file", "");
-	max_exec_queue_elements = pt.get<unsigned>("max_exec_queue_elements", 1000);
+	max_exec_queue_elements = pt.get<unsigned>("max_exec_queue_elements", 1100);
 	if (!max_exec_queue_elements)
 		throw std::invalid_argument("max_exec_queue_elements should never be 0");
 	exec_max_exec_queue_elements = pt.get<std::string>("exec_max_exec_queue_elements", "");
