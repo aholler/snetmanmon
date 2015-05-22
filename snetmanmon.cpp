@@ -19,7 +19,6 @@
 #include <boost/regex.hpp>
 
 #include <netinet/ether.h> // ether_addr
-#include <ifaddrs.h>
 
 #include "SafeQueue.hpp"
 #include "boost_asio_netlink_route.hpp"
@@ -116,11 +115,6 @@ static boost::asio::ip::address in_addr_to_address(const in6_addr& ina6)
 	return boost::asio::ip::address_v6(std::move(ipv6));
 }
 
-static boost::asio::ip::address in_addr_to_address(const sockaddr_in6 &s)
-{
-	return in_addr_to_address(s.sin6_addr);
-}
-
 static boost::asio::ip::address in_addr_to_address(const in_addr& ina)
 {
 	boost::asio::ip::address_v4::bytes_type ipv4;
@@ -128,11 +122,6 @@ static boost::asio::ip::address in_addr_to_address(const in_addr& ina)
 	assert(ipv4.size() == 4);
 	std::memcpy(ipv4.data(), &ina.s_addr, 4);
 	return boost::asio::ip::address_v4(std::move(ipv4));
-}
-
-static boost::asio::ip::address in_addr_to_address(const sockaddr_in &s)
-{
-	return in_addr_to_address(s.sin_addr);
 }
 
 class Event
@@ -145,7 +134,7 @@ class Event
 class EventLink : public Event
 {
 	public:
-		std::string state; // up, down or unknown
+		std::string state;
 		std::string ifname_old;
 		std::string state_old;
 		std::string address_old;
@@ -436,6 +425,7 @@ static void parse_link(const nlmsghdr* hdr, EventLink& evt)
 typedef SafeQueue<std::string> QueueStrings;
 static QueueStrings queue_execs;
 static std::thread exec_thread;
+static bool actions_disabled; // used to temporarily disable actions for existing links, addresses or routes
 
 static void exec(std::string &&str)
 {
@@ -522,7 +512,7 @@ static void do_actions(const E& evt, const std::string& etype, const Actions& ac
 {
 	auto end = actions.cend();
 	for (auto i = actions.cbegin(); i != end; ++i) {
-		if (i->str.empty())
+		if (i->str.empty() || actions_disabled)
 			continue;
 		std::string str(build_string(evt, i->str, etype));
 		do_action(*i, std::move(str));
@@ -852,93 +842,10 @@ static void route_del(const nlmsghdr& hdr)
 	}
 }
 
-static std::string get_eth_addr(ifaddrs* ifa)
-{
-	size_t len = ::strlen(ifa->ifa_name);
-	ifreq ifr;
-	if (len > sizeof(ifr.ifr_name) - 1)
-		return "";
-	std::memcpy(ifr.ifr_name, ifa->ifa_name, len+1);
-	int fd = ::socket(AF_UNIX, SOCK_DGRAM | SOCK_CLOEXEC, 0);
-	if (fd == -1)
-		return "";
-	int rc = ::ioctl(fd, SIOCGIFHWADDR, &ifr);
-	::close(fd);
-	if (rc == -1)
-		return "";
-	if (ifr.ifr_hwaddr.sa_family != ARPHRD_ETHER)
-		return "";
-	return mac2str(reinterpret_cast<const unsigned char*>(ifr.ifr_hwaddr.sa_data));
-}
-
-static void generate_evt_link(const Link& link)
-{
-	EventLink evt;
-	evt.ifname = link.ifname;
-	evt.address = link.address;
-	evt.state = link.state;
-	do_event(evt, "link_new", settings.actions_link_new, settings.filters_link_new);
-}
-
-static void generate_evt_addr(const std::string& ifname, const boost::asio::ip::address&& addr, std::string&& broadcast)
-{
-	EventAddr evt;
-	evt.ifname = ifname;
-	evt.address = addr.to_string();
-	evt.broadcast = std::move(broadcast);
-	evt.type_v6 = addr.is_v6();
-	do_event(evt, "addr_new", settings.actions_addr_new, settings.filters_addr_new);
-}
-
-static void populate_ifs(void)
-{
-	ifaddrs* ifaddr;
-
-	if (getifaddrs(&ifaddr) == -1) {
-		std::cerr << strerror(errno) << '\n';
-		return;
-	}
-
-	for (ifaddrs* ifa = ifaddr; ifa != nullptr; ifa = ifa->ifa_next) {
-		if (ifa->ifa_name == nullptr)
-			continue;
-		unsigned idx = if_nametoindex(ifa->ifa_name);
-		if (!idx)
-			continue;
-		std::string state("up");
-		if (!(ifa->ifa_flags & IFF_UP))
-			state = "down";
-		Link link(ifa->ifa_name, std::move(state), get_eth_addr(ifa));
-		auto if_inserted = map_idx_if.insert(std::pair<unsigned, Link>(idx, link));
-		if (if_inserted.second && settings.link_new_for_existing_links)
-			generate_evt_link(link);
-		if (ifa->ifa_addr == nullptr)
-			continue;
-		int family = ifa->ifa_addr->sa_family;
-		if (family == AF_INET || family == AF_INET6) {
-			auto inserted = map_idx_addrs.insert(std::pair<unsigned, SetIps>(idx, SetIps()));
-			if (inserted.first != map_idx_addrs.end()) {
-				boost::asio::ip::address addr;
-				if (family == AF_INET)
-					addr = in_addr_to_address(*reinterpret_cast<const sockaddr_in*>(ifa->ifa_addr));
-				else
-					addr = in_addr_to_address(*reinterpret_cast<const sockaddr_in6*>(ifa->ifa_addr));
-				auto addr_inserted = inserted.first->second.insert(addr);
-				if (addr_inserted.second && settings.addr_new_for_existing_addresses) {
-					std::string broadcast;
-					if (ifa->ifa_flags & IFF_BROADCAST && ifa->ifa_broadaddr && ifa->ifa_broadaddr->sa_family == AF_INET)
-						broadcast = in_addr_to_address(*reinterpret_cast<const sockaddr_in*>(ifa->ifa_broadaddr)).to_string();
-					generate_evt_addr(ifa->ifa_name, std::move(addr), std::move(broadcast));
-				}
-			}
-		}
-	}
-	freeifaddrs(ifaddr);
-}
-
 class netlink_route_client
 {
 private:
+	std::queue<std::vector<char>*> send_queue;
 	void receive(void) {
 		socket_.async_receive_from(
 			boost::asio::buffer(data_, max_length), sender_endpoint_,
@@ -946,27 +853,45 @@ private:
 					boost::asio::placeholders::error,
 					boost::asio::placeholders::bytes_transferred));
 	}
-	typedef std::array<char, NLMSG_LENGTH(sizeof(rtmsg))> RtmsgBuf;
-	void handle_send(RtmsgBuf* buf, const boost::system::error_code& ec, std::size_t)
+	void handle_send(std::vector<char>* buf, const boost::system::error_code& ec, std::size_t)
 	{
 		delete buf;
 		if (ec)
-			std::cerr << "Error sending route query (" << ec.message() << ")!\n";
+			std::cerr << "Error sending query (" << ec.message() << ")!\n";
 	}
-
-	void query_routes(void) {
-		auto buf = new RtmsgBuf;
-		buf->fill(0);
-		nlmsghdr* nl_msg = reinterpret_cast<nlmsghdr*>(buf);
-		nl_msg->nlmsg_len = buf->size();
-		nl_msg->nlmsg_type = RTM_GETROUTE;
-		nl_msg->nlmsg_flags = NLM_F_DUMP | NLM_F_REQUEST;
-		nl_msg->nlmsg_pid = ::getpid();
-		nl_msg->nlmsg_seq = ++seq;
-		socket_.async_send_to(boost::asio::buffer(buf, buf->size()), socket_.remote_endpoint(),
+	void send(std::vector<char>* buf) {
+		socket_.async_send_to(boost::asio::buffer(buf->data(), buf->size()), socket_.remote_endpoint(),
 			boost::bind(&netlink_route_client::handle_send, this, buf,
 				boost::asio::placeholders::error,
 				boost::asio::placeholders::bytes_transferred));
+
+	}
+	void query_ifs(void) {
+		auto buf = new std::vector<char>(NLMSG_ALIGN(NLMSG_LENGTH(sizeof(rtgenmsg))), 0);
+		nlmsghdr* nl_msg = reinterpret_cast<nlmsghdr*>(buf->data());
+		nl_msg->nlmsg_len = NLMSG_LENGTH(sizeof(rtgenmsg));
+		nl_msg->nlmsg_type = RTM_GETLINK;
+		nl_msg->nlmsg_flags = NLM_F_DUMP | NLM_F_REQUEST;
+		nl_msg->nlmsg_seq = ++seq;
+		rtgenmsg* rt = reinterpret_cast<rtgenmsg*>(NLMSG_DATA(nl_msg));
+		rt->rtgen_family = AF_PACKET;
+		send(buf);
+	}
+	void queue_query_rtmsg(uint16_t type) {
+		auto buf = new std::vector<char>(NLMSG_ALIGN(NLMSG_LENGTH(sizeof(rtmsg))), 0);
+		nlmsghdr* nl_msg = reinterpret_cast<nlmsghdr*>(buf->data());
+		nl_msg->nlmsg_len = NLMSG_LENGTH(sizeof(rtmsg));
+		nl_msg->nlmsg_type = type;
+		nl_msg->nlmsg_flags = NLM_F_DUMP | NLM_F_REQUEST;
+		nl_msg->nlmsg_seq = ++seq;
+		send_queue.push(buf);
+	}
+
+	void queue_query_addrs(void) {
+		queue_query_rtmsg(RTM_GETADDR);
+	}
+	void queue_query_routes(void) {
+		queue_query_rtmsg(RTM_GETROUTE);
 	}
 	boost::asio::netlink::route::socket socket_;
 	boost::asio::netlink::route::endpoint sender_endpoint_;
@@ -987,16 +912,32 @@ public:
 		if (::fcntl(socket_.native_handle(), F_SETFD, FD_CLOEXEC))
 			std::cerr << strerror(errno) << '\n';
 		receive();
-		populate_ifs();
+		queue_query_addrs();
 		if (settings.route_new_for_existing_routes)
-			query_routes();
+			queue_query_routes();
+		if (!settings.link_new_for_existing_links)
+			actions_disabled = true;
+		query_ifs();
 	}
 
 	void handle_receive_from(const boost::system::error_code& error, size_t bytes_recvd) {
 		if (error)
 			std::cerr << "Error receiving netlink message (" << error.message() << ")!\n";
 		const nlmsghdr* hdr = reinterpret_cast<const nlmsghdr*>(data_);
-		if (!error && bytes_recvd && !sender_endpoint_.pid())
+		if (!error && bytes_recvd && !sender_endpoint_.pid()) {
+			if (hdr->nlmsg_flags & NLMSG_DONE && bytes_recvd == NLMSG_ALIGN(NLMSG_LENGTH(sizeof(rtgenmsg)))) {
+				if (!send_queue.empty()) {
+					if (send_queue.size() == 2 || (send_queue.size() == 1 && !settings.route_new_for_existing_routes))
+						// next is the request to dump addresses
+						actions_disabled = !settings.addr_new_for_existing_addresses;
+					else
+						// next is the request to dump routes
+						actions_disabled = false; // == !settings.route_new_for_existing_routes;
+					send(send_queue.front());
+					send_queue.pop();
+				} else if (actions_disabled)
+					actions_disabled = false;
+			}
 			for(; NLMSG_OK(hdr, bytes_recvd); hdr = NLMSG_NEXT(hdr, bytes_recvd))
 				switch (hdr->nlmsg_type) {
 				case RTM_NEWLINK:
@@ -1024,6 +965,7 @@ public:
 				default:
 					break;
 				}
+		}
 		receive();
 	}
 };

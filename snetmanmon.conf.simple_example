@@ -9,17 +9,7 @@
 "events": {
 	"link_new": {
 		"filter": {
-			"ifname_old": "^$" // empty => if not renamed
-			,"address": "^$" // some interfaces like the loopback don't have a MAC
-			,"address_old": "^$" // MAC hasn't changed
-			,"state_old": "^$" // State hasn't changed
-			,"actions": {
-				"stdout": "New interface '%i' (state %s)"
-			}
-		}
-		,"filter": {
 			"ifname_old": "^$"
-			,"address": ".+" // Require MAC
 			,"address_old": "^$"
 			,"state_old": "^$"
 			,"actions": {
@@ -27,42 +17,23 @@
 			}
 		}
 		,"filter": {
-			"ifname_old": ".+" // not empty => if renamed
-			,"address": "^$"
-			,"actions": {
-				"stdout": "Interface '%I' was renamed to '%i' (state %s)"
-			}
-		}
-		,"filter": {
 			"ifname_old": ".+"
-			,"address": ".+"
 			,"actions": {
 				"stdout": "Interface '%I' was renamed to '%i' (MAC %a, state %s)"
 			}
 		}
 		,"filter": {
-			"state_old": ".+" // not empty => state changed
-			,"address": "^$"
-			,"actions": {
-				"stdout": "Interface '%i' changed state from %S to %s"
-			}
-		}
-		,"filter": {
 			"state_old": ".+"
-			,"address": ".+"
 			,"actions": {
 				"stdout": "Interface '%i' (MAC %a) changed state from %S to %s"
 			}
 		}
 		,"filter": {
 			"address_old": ".+"
-			,"address": ".+"
 			,"actions": {
 				"stdout": "MAC changed on interface %i from %A to %a (state %s)"
 			}
 		}
-		// We assume a MAC can't be added or removed from an interface,
-		// that means it either has a MAC right from it's appearance or it doesn't.
 	}
 	,"link_del": {
 		"actions": {

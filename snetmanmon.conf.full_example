@@ -39,14 +39,12 @@
 // expressions):
 //
 //	ifname		The name of the interface.
-//	address		The MAC of the interface (not everyone has one). The
-//			format is always aa:bb:cc:dd:ee:ff (lower case and
-//			single digit values will always have a leading zero).
+//	address		The MAC of the interface. The format is always
+//			aa:bb:cc:dd:ee:ff (lower case and single digit values will
+//			always have a leading zero).
 //	state		The state of the interface, this can be
 //			unknown, notpresent, down, lowerlayerdown, testing,
-//			dormant or up. The state in events generated for
-//			interfaces which already existed at startup will be
-//			only up or down.
+//			dormant or up.
 //	ifname_old	Contains the old name if a change of the name occured.
 //	address_old	Contains the old MAC if a change of the MAC occured.
 //	state_old	Contains the old state if a change of the state occured.
@@ -153,17 +151,7 @@
 "events": {
 	"link_new": {
 		"filter": {
-			"ifname_old": "^$" // empty => if not renamed
-			,"address": "^$" // some interfaces like the loopback don't have a MAC
-			,"address_old": "^$" // MAC hasn't changed
-			,"state_old": "^$" // State hasn't changed
-			,"actions": {
-				"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: New interface '%i' (state %s)\""
-			}
-		}
-		,"filter": {
 			"ifname_old": "^$"
-			,"address": ".+" // Require MAC
 			,"address_old": "^$"
 			,"state_old": "^$"
 			,"actions": {
@@ -172,41 +160,22 @@
 		}
 		,"filter": {
 			"ifname_old": ".+" // not empty => if renamed
-			,"address": "^$"
-			,"actions": {
-				"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: Interface '%I' was renamed to '%i' (state %s)\""
-			}
-		}
-		,"filter": {
-			"ifname_old": ".+"
-			,"address": ".+"
 			,"actions": {
 				"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: Interface '%I' was renamed to '%i' (MAC %a, state %s)\""
 			}
 		}
 		,"filter": {
 			"state_old": ".+" // not empty => state changed
-			,"address": "^$"
-			,"actions": {
-				"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: Interface '%i' changed state from %S to %s\""
-			}
-		}
-		,"filter": {
-			"state_old": ".+"
-			,"address": ".+"
 			,"actions": {
 				"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: Interface '%i' (MAC %a) changed state from %S to %s\""
 			}
 		}
 		,"filter": {
-			"address_old": ".+"
-			,"address": ".+"
+			"address_old": ".+" // not empty => MAC changed
 			,"actions": {
 				"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: MAC changed on interface %i from %A to %a (state %s)\""
 			}
 		}
-		// We assume a MAC can't be added or removed from an interface,
-		// that means it either has a MAC right from it's appearance or it doesn't.
 	}
 	,"link_del": {
 		"actions": {
