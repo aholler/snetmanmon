@@ -43,7 +43,9 @@ src_install() {
 extra_started_commands="reload"
 
 depend() {
-	after net
+	after bootmisc
+	# uncomment this if you've configured snetmanmon as a network manager
+	#provide net
 }
 
 start() {
