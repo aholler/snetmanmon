@@ -246,6 +246,24 @@
 
 	/* all examples are disabled by default
 
+	//////////////////////////////////////////////////////////////////
+	// Example:
+	// Configure loopback when it appears.
+	//////////////////////////////////////////////////////////////////
+	,"link_new": {
+		"filter": {
+			"ifname": "lo"
+			,"ifname_old": "^$" // empty => not if the interface was renamed
+			,"address_old": "^$" // empty => not if a MAC change occured
+			,"state_old": "^$" // empty => not if a state change occured
+			,"actions": {
+				"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: Configuring loopback interface '%i'\""
+				,"exec_seq": "ip addr add 127.0.0.1/8 dev lo brd + scope host"
+				,"exec_seq": "ip route add 127.0.0.0/8 dev lo scope host"
+				,"exec_seq": "ip link set lo up"
+			}
+		}
+	}
 
 	//////////////////////////////////////////////////////////////////
 	// Example:
@@ -254,9 +272,9 @@
 	,"link_new": {
 		"filter": {
 			"ifname": "eth0"
-			,"ifname_old": "^$"// empty => not if the interface was renamed
-			,"address_old": "^$" // empty => not if a MAC change occured
-			,"state_old": "^$" // empty => not if a state change occured
+			,"ifname_old": "^$"
+			,"address_old": "^$"
+			,"state_old": "^$"
 			,"actions": {
 				// Configure a static IP
 				"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: Configuring 192.0.2.2/24 on interface '%i'\""
