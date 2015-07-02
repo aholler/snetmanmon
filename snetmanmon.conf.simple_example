@@ -63,13 +63,13 @@
 		"filter": {
 			"gateway": ".+"
 			,"actions": {
-				"stdout": "New route %d (gateway %g, type %t) on interface '%i'"
+				"stdout": "New route %d (gateway %g, type %t, scope %s) on interface '%i'"
 			}
 		}
 		,"filter": {
 			"gateway": "^$"
 			,"actions": {
-				"stdout": "New route %d (type %t) on interface '%i'"
+				"stdout": "New route %d (type %t, scope %s) on interface '%i'"
 			}
 		}
 	}
@@ -77,13 +77,13 @@
 		"filter": {
 			"gateway": ".+"
 			,"actions": {
-				"stdout": "Route %d (gateway %g, type %t) on interface '%i' was deleted"
+				"stdout": "Route %d (gateway %g, type %t, scope %s) on interface '%i' was deleted"
 			}
 		}
 		,"filter": {
 			"gateway": "^$"
 			,"actions": {
-				"stdout": "Route %d (type %t) on interface '%i' was deleted"
+				"stdout": "Route %d (type %t, scope %s) on interface '%i' was deleted"
 			}
 		}
 	}

@@ -33,19 +33,22 @@ typedef std::map<unsigned, SetIps> Map_idx_addrs;
 class Route
 {
 	public:
-		Route(std::string&& d, std::string&& g, bool v6)
+		Route(std::string&& d, std::string&& g, bool v6, uint8_t s)
 			: destination(std::move(d))
 			, gateway(std::move(g))
 			, is_v6(v6)
+			, scope(s)
 		{}
-		Route(const std::string& d, const std::string& g, bool v6)
+		Route(const std::string& d, const std::string& g, bool v6, uint8_t s)
 			: destination(d)
 			, gateway(g)
 			, is_v6(v6)
+			, scope(s)
 		{}
 		std::string destination;
 		std::string gateway;
 		bool is_v6;
+		uint8_t scope;
 		bool operator==(const Route& r) const {
 			return destination == r.destination && gateway == r.gateway;
 		}
@@ -102,7 +105,7 @@ static void print_ifs(void)
 		std::cout << "idx " << i->first << "\n";
 		auto end_routes = i->second.cend();
 		for (auto j = i->second.cbegin(); j != end_routes; ++j)
-			std::cout << "\troute " << j->destination << " gw " << j->gateway << '\n';
+			std::cout << "\troute " << j->destination << " gw " << j->gateway << " scope " << std::to_string(j->scope) << '\n';
 	}
 }
 
@@ -153,6 +156,7 @@ class EventRoute : public Event
 		std::string gateway;
 		bool type_v6; // ipv6?
 		unsigned if_idx;
+		uint8_t scope;
 };
 
 struct Action
@@ -197,6 +201,7 @@ class FilterRoute: public Filter
 	public:
 		boost::regex gateway;
 		std::string type;
+		boost::regex scope;
 };
 typedef std::vector<FilterRoute> FiltersRoute;
 
@@ -307,6 +312,7 @@ static void add_route_events(const boost::property_tree::ptree& pt, std::string&
 			add_regex(itf, "destination", filter.address);
 			add_regex(itf, "gateway", filter.gateway);
 			filter.type = itf->second.get<std::string>("type", "");
+			add_regex(itf, "scope", filter.scope);
 			add_actions(itf->second, filter.actions);
 			filters_route.push_back(std::move(filter));
 		}
@@ -496,6 +502,24 @@ static std::string build_string(const EventAddr& evt, const std::string& s, cons
 	return result;
 }
 
+static std::string scope_as_string(uint8_t scope)
+{
+	switch (scope) {
+	case RT_SCOPE_UNIVERSE:
+		return "universe";
+	case RT_SCOPE_SITE:
+		return "site";
+	case RT_SCOPE_LINK:
+		return "link";
+	case RT_SCOPE_HOST:
+		return "host";
+	case RT_SCOPE_NOWHERE:
+		return "nowhere";
+	default:
+		return std::to_string(scope);
+	}
+}
+
 static std::string build_string(const EventRoute& evt, const std::string& s, const std::string& etype)
 {
 	std::string result(s);
@@ -504,6 +528,7 @@ static std::string build_string(const EventRoute& evt, const std::string& s, con
 	stringReplace(result, "%g", evt.gateway);
 	stringReplace(result, "%i", evt.ifname);
 	stringReplace(result, "%t", (evt.type_v6 ? "v6" : "v4"));
+	stringReplace(result, "%s", scope_as_string(evt.scope));
 	return result;
 }
 
@@ -565,6 +590,8 @@ static bool filter_matches(const EventRoute& evt, const FilterRoute& filter)
 	if (!is_empty_or_matches(filter.gateway, evt.gateway))
 		return false;
 	if (!filter.type.empty() && filter.type != (evt.type_v6 ? "v6" : "v4"))
+		return false;
+	if (!is_empty_or_matches(filter.scope, scope_as_string(evt.scope)))
 		return false;
 	return true;
 }
@@ -662,6 +689,7 @@ static void link_del(const nlmsghdr* hdr)
 			evt_route.address = route->destination;
 			evt_route.gateway = route->gateway;
 			evt_route.type_v6 = route->is_v6;
+			evt_route.scope = route->scope;
 			do_event(evt_route, "route_del", settings.actions_route_del, settings.filters_route_del);
 		}
 	map_idx_routes.erase(idx);
@@ -757,6 +785,7 @@ static void parse_route(const nlmsghdr& hdr, EventRoute& evt)
 		return;
 	evt.if_idx = 0;
 	evt.type_v6 = (msg->rtm_family == AF_INET6);
+	evt.scope = msg->rtm_scope;
 	int bytes = RTM_PAYLOAD(&hdr);
 	for (const rtattr* attr = RTM_RTA(msg); RTA_OK(attr, bytes); attr = RTA_NEXT(attr, bytes)) {
 		switch (attr->rta_type) {
@@ -821,7 +850,7 @@ static void route_new(const nlmsghdr& hdr)
 			}
 			return;
 		}
-		auto inserted = found->second.insert(Route(evt.address, evt.gateway, evt.type_v6));
+		auto inserted = found->second.insert(Route(evt.address, evt.gateway, evt.type_v6, evt.scope));
 		if (inserted.second)
 			do_event(evt, "route_new", settings.actions_route_new, settings.filters_route_new);
 	}
@@ -837,7 +866,7 @@ static void route_del(const nlmsghdr& hdr)
 
 	auto found = map_idx_routes.find(evt.if_idx);
 	if (found != map_idx_routes.cend()) {
-		found->second.erase(Route(evt.address, evt.gateway, false));
+		found->second.erase(Route(evt.address, evt.gateway, false, evt.scope));
 		do_event(evt, "route_del", settings.actions_route_del, settings.filters_route_del);
 	}
 }

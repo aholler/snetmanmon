@@ -93,6 +93,7 @@
 //	destination	The destionation (in the form IP/len, e.g. 127.0.0.0/8 or 'default').
 //	gateway		The gateway (might be empty).
 //	type		Type of the route (either v4 or v6).
+//	scope		Scope of the route (universe, site, link, host, nowhere or 1-252 (except 200 (site)).
 //
 // Except the type, all of these properties are regular expressions.
 //
@@ -103,6 +104,7 @@
 //	%d		The destination.
 //	%g		The gateway.
 //	%t		The type of the route.
+//	%s		The scope of the route.
 //
 // All regular expressions have to be in the Perl syntax, which is the same
 // as used in JavaScript. For documentation have a look at
@@ -207,13 +209,13 @@
 		"filter": {
 			"gateway": ".+"
 			,"actions": {
-				"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: New route %d (gateway %g, type %t) on interface '%i'\""
+				"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: New route %d (gateway %g, type %t, scope %s) on interface '%i'\""
 			}
 		}
 		,"filter": {
 			"gateway": "^$"
 			,"actions": {
-				"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: New route %d (type %t) on interface '%i'\""
+				"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: New route %d (type %t, scope %s) on interface '%i'\""
 			}
 		}
 	}
@@ -221,13 +223,13 @@
 		"filter": {
 			"gateway": ".+"
 			,"actions": {
-				"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: Route %d (gateway %g, type %t) on interface '%i' was deleted\""
+				"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: Route %d (gateway %g, type %t, scope %s) on interface '%i' was deleted\""
 			}
 		}
 		,"filter": {
 			"gateway": "^$"
 			,"actions": {
-				"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: Route %d (type %t) on interface '%i' was deleted\""
+				"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: Route %d (type %t, scope %s) on interface '%i' was deleted\""
 			}
 		}
 	}

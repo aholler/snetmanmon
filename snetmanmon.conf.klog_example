@@ -73,13 +73,13 @@
 		"filter": {
 			"gateway": ".+"
 			,"actions": {
-				"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: New route %d (gateway %g, type %t) on interface '%i'\""
+				"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: New route %d (gateway %g, type %t, scope %s) on interface '%i'\""
 			}
 		}
 		,"filter": {
 			"gateway": "^$"
 			,"actions": {
-				"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: New route %d (type %t) on interface '%i'\""
+				"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: New route %d (type %t, scope %s) on interface '%i'\""
 			}
 		}
 	}
@@ -87,13 +87,13 @@
 		"filter": {
 			"gateway": ".+"
 			,"actions": {
-				"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: Route %d (gateway %g, type %t) on interface '%i' was deleted\""
+				"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: Route %d (gateway %g, type %t, scope %s) on interface '%i' was deleted\""
 			}
 		}
 		,"filter": {
 			"gateway": "^$"
 			,"actions": {
-				"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: Route %d (type %t) on interface '%i' was deleted\""
+				"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: Route %d (type %t, scope %s) on interface '%i' was deleted\""
 			}
 		}
 	}
