@@ -77,7 +77,7 @@
 //	%i		Name of the interface.
 //	%a		The IP.
 //	%b		The broadcast address.
-//	%t		They type of the IP.
+//	%t		The type of the IP.
 //
 // Support for routes is currently (by intention) limited, but it should cover
 // the basic needs of most people.
@@ -102,7 +102,7 @@
 //	%i		Name of the interface.
 //	%d		The destination.
 //	%g		The gateway.
-//	%t		They type of the route.
+//	%t		The type of the route.
 //
 // All regular expressions have to be in the Perl syntax, which is the same
 // as used in JavaScript. For documentation have a look at
