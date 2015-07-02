@@ -1024,8 +1024,10 @@ int main(int argc, char* argv[])
 		return 2;
 	}
 
-	if (argc == 3)
+	if (argc == 3) {
+		std::cout << "No errors found in config '" << config << "'.\n";
 		return 0;
+	}
 
 	if (!settings.pid_file.empty()) {
 		std::ofstream pid;
