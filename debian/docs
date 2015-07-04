@@ -2,3 +2,4 @@ snetmanmon.conf.simple_example
 snetmanmon.conf.log_example
 snetmanmon.conf.klog_example
 snetmanmon.conf.debug_example
+ipv6_rpc.txt

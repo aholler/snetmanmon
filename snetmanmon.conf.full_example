@@ -529,6 +529,21 @@
 
 	//////////////////////////////////////////////////////////////////
 	// Example:
+	// IPv6 RPC (remote procedure call)
+	// See ipv6_rpc.txt for an explanation.
+	//////////////////////////////////////////////////////////////////
+	,"addr_del": {
+		"filter": {
+			"ifname": "eth0"
+			,"address": "fecd::dead:beef:1234:5678"
+			,"actions": {
+				"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: IPv6 RPC (IP%t %a on interface '%i' was deleted)\""
+			}
+		}
+	}
+
+	//////////////////////////////////////////////////////////////////
+	// Example:
 	// Debug. Log all properties for every reported event.
 	//////////////////////////////////////////////////////////////////
 	,"link_new": {

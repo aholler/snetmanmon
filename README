@@ -36,7 +36,7 @@ if you have a ThingOfInternets (ToI) instead of an IoT,
 snetmanmon might be the right tool too.
 
 Have a look at the file snetmanmon.conf.full_example for
-documentation.
+documentation and a look at ipv6_rpc.txt for a creative usage example.
 
 Why is it called simple? Because it almost doesn't do any actions
 itself. E.g. It doesn't configure network interfaces nor does it

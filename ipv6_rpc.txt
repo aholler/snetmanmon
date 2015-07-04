@@ -1,0 +1,105 @@
+
+
+Using snetmanomon for IPv6 RPCs
+
+
+A creative usage example for snetmanmon is to use it as a remote procedure
+call (RPC) mechanism using some features of IPv6 together with the ability
+of snetmanmon to execute arbitrary commands when an IP(v6) (dis)appears.
+
+Be aware that this neither secure nor encouraged!
+
+It is more meant as an example to make people aware of some of the funny but
+also dangerous mechanisms IPv6 offers.
+
+Assume you have a Localnet of Things (LoT), all connected to the same switch
+(no routers inbetween) and they have IPv6 and Neighbor Discovery enabled (which
+usually is the default on most Linux systems).
+
+That means you already can remotely create a lot of IPv6 addresses on all the
+things by just sending one small packet to your local network.
+
+Together with snetmanmon, which enables you to call arbitrary commands if an
+IPv6 (dis)appears, you will have everything what's needed.
+
+How it works:
+
+Just send a Router Advertisment (RA) either directly to a remote system
+(unicast) or to all systems on the local network (using the all nodes multicast
+address as recipient).
+If this RA is valid and contains a prefix, the receiving system will create an
+IPv6 link-local address on the receiving interface using the received prefix
+as template.
+Even better, we can send a RA which just deletes a (non-existent) link-local
+IPv6 by using some unusual lifetimes for the prefix (this works at least with
+Linux kernel 4.1).
+That means there will be never an additional link-local address on the remote
+thing.
+
+To make that easy, I've added a small utility called send_rpc_ra to the
+snetmanmon repository.
+
+Usage is quiet easy:
+
+- Go to the thing which functions as the master and check which link-local
+  addresses are already used. In order to not get in conflict with existing
+  IPv6 routers, we need a prefix which isn't already used. I suggest to use
+  one of the (deprecated) site local prefixes (fec0::/10, see RFCs 1884, 3879
+  and 4193).
+  Assuming that e.g. you don't see any IPv6 address starting with fecd, we
+  will use fecd:: as the prefix in this example.
+- Go to the remote box you want to remotely start a command on and look
+  at which link-local address (fe80::*) it has.
+- Assuming the link-local address is fe80::dead:beef:1234:5678/64, you now add
+  an entry to snetmanmon.conf on that thing like this:
+
+	// Start a backup when remotely asked to do so
+	,"addr_del": {
+		"filter": {
+			"ifname": "eth0"
+			,"address": "fecd::dead:beef:1234:5678"
+			,"actions": {
+				"stdout": "Starting backup (IP%t %a on interface '%i' was deleted)"
+				,"exec_seq": "nohup >/dev/null 2>&1 /usr/local/sbin/make_backup.sh &"
+			}
+		}
+	}
+
+  As long as your backup doesn't need root, snetmanmon doesn't have to run as
+  root.
+
+- Go back to the master and call
+
+    send_rpc_ra eth0 fe80::dead:beef:1234:5678 fecd::
+
+  (root necessary) in order to start the backup.
+  In case you want to start the backup on all things on the local network, just
+  send the RA to the all nodes multicast address:
+
+    send_rpc_ra eth0 ff02::1 fecd::
+
+Easy, isn't it?
+
+Some warnings:
+
+Make sure you don't do such on a network which isn't under your control.
+Some network monitoring software might call the administrator of the network
+in order to tell him that something bad might be at work in the network he is
+responsible for.
+
+Be aware that anyone (on your local network) can send such (RA) packets.
+
+Be aware that (almost) anyone (on your local network) can listen to such (RA)
+packets.
+
+That means the only security this creative IPv6 RPC mechanism offers on your
+local network is some obscurity, because it isn't obvious that and which
+command will be executed through a such an RA.
+
+On the other side, because these RAs don't pass routers (HOPs), you are
+(almost) safe from misuse by someone on the Internet.
+
+
+July 2015
+
+Alexander Holler
