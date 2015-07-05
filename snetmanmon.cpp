@@ -87,25 +87,20 @@ static Map_idx_if map_idx_if;
 
 static void print_ifs(void)
 {
-	auto end = map_idx_if.cend();
-	for (auto i = map_idx_if.cbegin(); i != end; ++i)
-		std::cout << "idx " << i->first <<
-			" if '" << i->second.ifname <<
-			"' state '" << i->second.state <<
-			"' MAC " << i->second.address << "\n";
-	auto end_ifs = map_idx_addrs.cend();
-	for (auto i = map_idx_addrs.cbegin(); i != end_ifs; ++i) {
-		std::cout << "idx " << i->first << "\n";
-		auto end_addrs = i->second.cend();
-		for (auto j = i->second.cbegin(); j != end_addrs; ++j)
-			std::cout << "\taddr " << j->to_string() << '\n';
+	for (const auto& i : map_idx_if)
+		std::cout << "idx " << i.first <<
+			" if '" << i.second.ifname <<
+			"' state '" << i.second.state <<
+			"' MAC " << i.second.address << "\n";
+	for (const auto& i : map_idx_addrs) {
+		std::cout << "idx " << i.first << "\n";
+		for (const auto& a : i.second)
+			std::cout << "\taddr " << a.to_string() << '\n';
 	}
-	auto end_ifs2 = map_idx_routes.cend();
-	for (auto i = map_idx_routes.cbegin(); i != end_ifs2; ++i) {
-		std::cout << "idx " << i->first << "\n";
-		auto end_routes = i->second.cend();
-		for (auto j = i->second.cbegin(); j != end_routes; ++j)
-			std::cout << "\troute " << j->destination << " gw " << j->gateway << " scope " << std::to_string(j->scope) << '\n';
+	for (const auto& i : map_idx_routes) {
+		std::cout << "idx " << i.first << "\n";
+		for (const auto& r : i.second)
+			std::cout << "\troute " << r.destination << " gw " << r.gateway << " scope " << std::to_string(r.scope) << '\n';
 	}
 }
 
@@ -535,12 +530,11 @@ static std::string build_string(const EventRoute& evt, const std::string& s, con
 template <class E>
 static void do_actions(const E& evt, const std::string& etype, const Actions& actions)
 {
-	auto end = actions.cend();
-	for (auto i = actions.cbegin(); i != end; ++i) {
-		if (i->str.empty() || actions_disabled)
+	for (const auto& a : actions) {
+		if (a.str.empty() || actions_disabled)
 			continue;
-		std::string str(build_string(evt, i->str, etype));
-		do_action(*i, std::move(str));
+		std::string str(build_string(evt, a.str, etype));
+		do_action(a, std::move(str));
 	}
 }
 
@@ -599,10 +593,9 @@ static bool filter_matches(const EventRoute& evt, const FilterRoute& filter)
 template <class E, class F>
 static void do_filters(const E& evt, std::string&& etype, const F& filters)
 {
-	auto end = filters.cend();
-	for (auto i = filters.cbegin(); i != end; ++i)
-		if (filter_matches(evt, *i))
-			do_actions(evt, etype, i->actions);
+	for (const auto& f : filters)
+		if (filter_matches(evt, f))
+			do_actions(evt, etype, f.actions);
 }
 
 template <class E, class F>
