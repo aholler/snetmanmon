@@ -618,10 +618,10 @@ static void link_new(const nlmsghdr* hdr)
 	parse_link(hdr, evt);
 
 	unsigned idx = static_cast<const ifinfomsg*>(NLMSG_DATA(hdr))->ifi_index;
-	map_idx_addrs.insert(std::pair<unsigned, SetIps>(idx, SetIps()));
-	map_idx_routes.insert(std::pair<unsigned, SetRoutes>(idx, SetRoutes()));
+	map_idx_addrs.insert(std::make_pair(idx, SetIps()));
+	map_idx_routes.insert(std::make_pair(idx, SetRoutes()));
 	Link link(evt.ifname, evt.state, evt.address);
-	auto inserted = map_idx_if.insert(std::pair<unsigned, Link>(idx, link));
+	auto inserted = map_idx_if.insert(std::make_pair(idx, link));
 	if (inserted.second) {
 		// New link (interface), submit the event, done.
 		do_event(evt, "link_new", settings.actions_link_new, settings.filters_link_new);
@@ -832,7 +832,7 @@ static void route_new(const nlmsghdr& hdr)
 		auto if_found = map_idx_if.find(evt.if_idx);
 		if (if_found == map_idx_if.cend())
 			return;
-		auto inserted = map_idx_routes.insert(std::pair<unsigned, SetRoutes>(evt.if_idx, SetRoutes()));
+		auto inserted = map_idx_routes.insert(std::make_pair(evt.if_idx, SetRoutes()));
 		found = inserted.first;
 	}
 	if (found != map_idx_routes.cend()) {
