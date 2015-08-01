@@ -68,7 +68,7 @@
 		}
 	}
 
-	/* route events may happen surprisingly often, therefor we don't log them by default to the kernels ring buffer
+	/* route events may happen surprisingly often (especially on kernels < 4.2), therefor we don't log them by default to the kernels ring buffer
 	,"route_new": {
 		"filter": {
 			"gateway": ".+"
