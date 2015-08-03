@@ -94,6 +94,7 @@
 //	gateway		The gateway (might be empty).
 //	type		Type of the route (either v4 or v6).
 //	scope		Scope of the route (universe, site, link, host, nowhere or 1-252 (except 200 (site)).
+//	mtu		MTU of the route (might be empty).
 //
 // Except the type, all of these properties are regular expressions.
 //
@@ -105,6 +106,7 @@
 //	%g		The gateway.
 //	%t		The type of the route.
 //	%s		The scope of the route.
+//	%u		The MTU of the route.
 //
 // All regular expressions have to be in the Perl syntax, which is the same
 // as used in JavaScript. For documentation have a look at
@@ -208,12 +210,28 @@
 	,"route_new": {
 		"filter": {
 			"gateway": ".+"
+			,"mtu": ".+"
+			,"actions": {
+				"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: New route %d (gateway %g, type %t, scope %s, MTU %u) on interface '%i'\""
+			}
+		}
+		,"filter": {
+			"gateway": ".+"
+			,"mtu": "^$"
 			,"actions": {
 				"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: New route %d (gateway %g, type %t, scope %s) on interface '%i'\""
 			}
 		}
 		,"filter": {
 			"gateway": "^$"
+			,"mtu": ".+"
+			,"actions": {
+				"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: New route %d (type %t, scope %s, MTU %u) on interface '%i'\""
+			}
+		}
+		,"filter": {
+			"gateway": "^$"
+			,"mtu": "^$"
 			,"actions": {
 				"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: New route %d (type %t, scope %s) on interface '%i'\""
 			}
@@ -222,12 +240,28 @@
 	,"route_del": {
 		"filter": {
 			"gateway": ".+"
+			,"mtu": ".+"
+			,"actions": {
+				"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: Route %d (gateway %g, type %t, scope %s, MTU %u) on interface '%i' was deleted\""
+			}
+		}
+		,"filter": {
+			"gateway": ".+"
+			,"mtu": "^$"
 			,"actions": {
 				"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: Route %d (gateway %g, type %t, scope %s) on interface '%i' was deleted\""
 			}
 		}
 		,"filter": {
 			"gateway": "^$"
+			,"mtu": ".+"
+			,"actions": {
+				"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: Route %d (type %t, scope %s, MTU %u) on interface '%i' was deleted\""
+			}
+		}
+		,"filter": {
+			"gateway": "^$"
+			,"mtu": "^$"
 			,"actions": {
 				"exec_seq": "test -w /dev/kmsg && echo >/dev/kmsg \"snetmanmon: Route %d (type %t, scope %s) on interface '%i' was deleted\""
 			}

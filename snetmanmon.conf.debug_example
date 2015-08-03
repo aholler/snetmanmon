@@ -30,12 +30,12 @@
 	}
 	,"route_new": {
 		"actions": {
-			"stdout": "e:'%e' i:'%i' t:'%t' d:'%d' g:'%g'"
+			"stdout": "e:'%e' i:'%i' t:'%t' d:'%d' g:'%g' m:'%u'"
 		}
 	}
 	,"route_del": {
 		"actions": {
-			"stdout": "e:'%e' i:'%i' t:'%t' d:'%d' g:'%g'"
+			"stdout": "e:'%e' i:'%i' t:'%t' d:'%d' g:'%g' m:'%u'"
 		}
 	}
 } // events

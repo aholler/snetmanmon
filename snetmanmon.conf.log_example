@@ -66,12 +66,28 @@
 	,"route_new": {
 		"filter": {
 			"gateway": ".+"
+			,"mtu": ".+"
+			,"actions": {
+				"exec_seq": "logger \"snetmanmon: New route %d (gateway %g, type %t, scope %s, MTU %u) on interface '%i'\""
+			}
+		}
+		,"filter": {
+			"gateway": ".+"
+			,"mtu": "^$"
 			,"actions": {
 				"exec_seq": "logger \"snetmanmon: New route %d (gateway %g, type %t, scope %s) on interface '%i'\""
 			}
 		}
 		,"filter": {
 			"gateway": "^$"
+			,"mtu": ".+"
+			,"actions": {
+				"exec_seq": "logger \"snetmanmon: New route %d (type %t, scope %s, MTU %u) on interface '%i'\""
+			}
+		}
+		,"filter": {
+			"gateway": "^$"
+			,"mtu": "^$"
 			,"actions": {
 				"exec_seq": "logger \"snetmanmon: New route %d (type %t, scope %s) on interface '%i'\""
 			}
@@ -80,12 +96,28 @@
 	,"route_del": {
 		"filter": {
 			"gateway": ".+"
+			,"mtu": ".+"
+			,"actions": {
+				"exec_seq": "logger \"snetmanmon: Route %d (gateway %g, type %t, scope %s, MTU %u) on interface '%i' was deleted\""
+			}
+		}
+		,"filter": {
+			"gateway": ".+"
+			,"mtu": "^$"
 			,"actions": {
 				"exec_seq": "logger \"snetmanmon: Route %d (gateway %g, type %t, scope %s) on interface '%i' was deleted\""
 			}
 		}
 		,"filter": {
 			"gateway": "^$"
+			,"mtu": ".+"
+			,"actions": {
+				"exec_seq": "logger \"snetmanmon: Route %d (type %t, scope %s, MTU %u) on interface '%i' was deleted\""
+			}
+		}
+		,"filter": {
+			"gateway": "^$"
+			,"mtu": "^$"
 			,"actions": {
 				"exec_seq": "logger \"snetmanmon: Route %d (type %t, scope %s) on interface '%i' was deleted\""
 			}
