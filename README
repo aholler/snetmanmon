@@ -72,15 +72,6 @@ libboost-regex-dev and libboost-system-dev. Afterwards just call
 	dpkg-buildpackage -us -uc
 
 
-If you're missing features or want support, please keep in mind that
-the author built snetmanmon only to fulfill his own needs and that
-he doesn't care much for anything else (anymore) if it isn't payed.
-
-
-PS: If you're working for Google or if you are a Google employee,
-and you want to use this tool, please give the autor a call so that
-he can make a quiz (have some fun) *with you* in order to test if
-you qualify as an user.
-The idea was actually to add this as an exception to the license, but
-unfortunately that would disqualify the license in regard to some
-rules for open source licenses.
+If you have want to show/use the MTU of routes, please have a look at the
+branch named mtu. I haven't merged it, because I think it's of no use for
+most people and I want to keep snetmanmon as simple as possible.
