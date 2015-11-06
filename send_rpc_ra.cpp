@@ -75,23 +75,8 @@ static int check_prefix(const std::string if_name, const in6_addr& prefix)
 	return 0;
 }
 
-int main(int argc, char** argv)
+unsigned send_rpc_ra(std::string&& interface, std::string&& destination, std::string&& prefix)
 {
-        std::cout << "\nsend_rpc_ra\n";
-        std::cout << "\n(C) 2015 Alexander Holler\n\n";
-
-	if (argc != 4) {
-		std::cout << "Usage: " <<
-			"send_rpc_ra interface destination_ipv6 prefix_ipv6\n" <<
-			"Example: " <<
-			"send_ra eth0 ff02::1 fecd::\n\n";
-		return 1;
-	}
-
-	std::string interface(argv[1]);
-	std::string destination(argv[2]);
-	std::string prefix(argv[3]);
-
 	struct {
 		nd_router_advert nra;
 		nd_opt_prefix_info opt_prefix_info;
@@ -201,4 +186,21 @@ int main(int argc, char** argv)
 		prefix << " to " << destination << "\n";
 
 	return 0;
+}
+
+
+int main(int argc, char** argv)
+{
+        std::cout << "\nsend_rpc_ra\n";
+        std::cout << "\n(C) 2015 Alexander Holler\n\n";
+
+	if (argc != 4) {
+		std::cout << "Usage: " <<
+			"send_rpc_ra interface destination_ipv6 prefix_ipv6\n" <<
+			"Example: " <<
+			"send_rpc_ra eth0 ff02::1 fecd::\n\n";
+		return 1;
+	}
+
+	return send_rpc_ra(argv[1], argv[2], argv[3]);
 }
