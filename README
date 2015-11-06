@@ -72,6 +72,6 @@ libboost-regex-dev and libboost-system-dev. Afterwards just call
 	dpkg-buildpackage -us -uc
 
 
-If you have want to show/use the MTU of routes, please have a look at the
+If you want to show/use the MTU of routes, please have a look at the
 branch named mtu. I haven't merged it, because I think it's of no use for
 most people and I want to keep snetmanmon as simple as possible.
