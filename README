@@ -64,12 +64,20 @@ Afterwards you just can call it with
 to test it (no special privileges are needed and nothing else will
 be executed).
 
-
 To build a package for Debian (tested with 8.0 (Jessie)), you need to
 install the packages build-essential, cmake, debhelper, libboost-dev,
 libboost-regex-dev and libboost-system-dev. Afterwards just call
 
 	dpkg-buildpackage -us -uc
+
+To build a static version (e.g. for older systems where gcc >=4.7 isn't
+available) you need the static boost libraries and the static libstdc++
+library (e.g. on Fedora you have to install boost-static and
+libstdc++-static, on Debian you are getting them with the -dev packages).
+To build a statically-linked binary, just use
+
+	LDFLAGS=-static cmake -DCMAKE_BUILD_TYPE=release
+	make
 
 
 If you want to show/use the MTU of routes, please have a look at the
