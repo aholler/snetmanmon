@@ -24,7 +24,7 @@ elseif (NOT Boost_SYSTEM_FOUND OR NOT Boost_REGEX_FOUND)
 endif()
 INCLUDE_DIRECTORIES(${Boost_INCLUDE_DIRS})
 
-add_executable(${TARGET} ${TARGET}.cpp)
+add_executable(${TARGET} ${TARGET}.cpp json11/json11.cpp)
 target_link_libraries(${TARGET} ${Boost_LIBRARIES})
 INSTALL(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/${TARGET} DESTINATION bin)
 
