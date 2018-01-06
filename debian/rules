@@ -16,7 +16,7 @@ override_dh_auto_configure:
 override_dh_auto_install:
 	mkdir -p debian/snetmanmon/etc
 	cp snetmanmon.conf.full_example  debian/snetmanmon/etc/snetmanmon.conf
-	echo "   snetmanmon is copyright (c) 2015 by Alexander Holler" >debian/copyright
+	echo "   snetmanmon is copyright (c) 2015 - 2018 by Alexander Holler" >debian/copyright
 	echo "" >>debian/copyright
 	echo "License:" >>debian/copyright
 	echo "" >>debian/copyright

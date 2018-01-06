@@ -1,6 +1,6 @@
 {
 // Example configuration for snetmanmon, a simple network manager and monitor.
-// (c) 2015 Alexander Holler
+// (c) 2015 - 2018 Alexander Holler
 
 // This example configuration logs all events to the kernel ring buffer.
 // It includes several examples too to give an impression about the

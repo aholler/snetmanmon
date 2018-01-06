@@ -2,7 +2,7 @@
 //
 // A simple network manager and monitor for Linux
 //
-// (C) 2015 Alexander Holler
+// (C) 2015 - 2018 Alexander Holler
 //
 
 #include <iostream>
@@ -1030,7 +1030,7 @@ static void sighup(const boost::system::error_code&, int)
 int main(int argc, char* argv[])
 {
 	std::cout << "\nsnetmanmon V" VERSION << '\n';
-	std::cout << "\n(C) 2015 Alexander Holler\n\n";
+	std::cout << "\n(C) 2015 - 2018 Alexander Holler\n\n";
 
 	if ((argc != 2 && argc != 3) || (argc == 3 && std::string(argv[1]) != "-t")) {
 		std::cerr << "Usage: snetmanmon [-t] config\n\n";
