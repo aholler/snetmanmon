@@ -14,14 +14,17 @@
 #include <thread>
 #include <cstdlib> // std::system
 #include <chrono>
+#include <fstream> // ifstream
+#include <iomanip> // setfill, setw
 
-#include <boost/property_tree/json_parser.hpp>
+#include <boost/bind.hpp>
 #include <boost/regex.hpp>
 
 #include <netinet/ether.h> // ether_addr
 
 #include "SafeQueue.hpp"
 #include "boost_asio_netlink_route.hpp"
+#include "json11/json11.hpp"
 #include "version.h"
 
 static std::chrono::time_point<std::chrono::steady_clock> time_last_msg_exec_queue_overflow;
@@ -227,88 +230,88 @@ class Settings {
 		void load(const std::string& path);
 };
 
-static void add_actions_type(const boost::property_tree::ptree& pt,
+static void add_actions_type(const json11::Json::object& jo,
 	Actions& actions, std::string&& type_name, Action::Type type)
 {
-	auto found = pt.equal_range(std::move(type_name));
+	auto found = jo.equal_range(std::move(type_name));
 	for (auto it = found.first; it != found.second; ++it ) {
 		Action action;
 		action.type = type;
-		action.str = it->second.data();
+		action.str = it->second.string_value();
 		actions.push_back(std::move(action));
 	}
 }
 
-static void add_actions(const boost::property_tree::ptree& pt, Actions& actions)
+static void add_actions(const json11::Json::object& jo, Actions& actions)
 {
-	auto found_actions = pt.equal_range("actions");
+	auto found_actions = jo.equal_range("actions");
 	for (auto it = found_actions.first; it != found_actions.second; ++it ) {
-		add_actions_type(it->second, actions, "stdout", Action::Type_stdout);
-		add_actions_type(it->second, actions, "exec", Action::Type_exec);
-		add_actions_type(it->second, actions, "exec_seq", Action::Type_exec_seq);
+		add_actions_type(it->second.object_items(), actions, "stdout", Action::Type_stdout);
+		add_actions_type(it->second.object_items(), actions, "exec", Action::Type_exec);
+		add_actions_type(it->second.object_items(), actions, "exec_seq", Action::Type_exec_seq);
 	}
 }
 
-static void add_regex(const boost::property_tree::ptree::const_assoc_iterator& it, std::string&& s, boost::regex& r)
+static void add_regex(const json11::Json& j, std::string&& s, boost::regex& r)
 {
-	std::string str(it->second.get<std::string>(std::move(s), ""));
+	std::string str(j[std::move(s)].string_value());
 	if (str.empty())
 		return;
 	r = boost::regex(std::move(str), boost::regex::perl);
 }
 
-static void add_link_events(const boost::property_tree::ptree& pt, std::string&& ltype, Actions& actions, FiltersLink& filters_link)
+static void add_link_events(const json11::Json::object& jo, std::string&& ltype, Actions& actions, FiltersLink& filters_link)
 {
-	auto events = pt.equal_range(std::move(ltype));
+	auto events = jo.equal_range(std::move(ltype));
 	for (auto it = events.first; it != events.second; ++it ) {
-		add_actions(it->second, actions);
-		auto filters = it->second.equal_range("filter");
+		add_actions(it->second.object_items(), actions);
+		auto filters = it->second.object_items().equal_range("filter");
 		for (auto itf = filters.first; itf != filters.second; ++itf ) {
 			FilterLink filter;
-			add_regex(itf, "ifname", filter.ifname);
-			add_regex(itf, "address", filter.address);
-			add_regex(itf, "state", filter.state);
-			add_regex(itf, "ifname_old", filter.ifname_old);
-			add_regex(itf, "state_old", filter.state_old);
-			add_regex(itf, "address_old", filter.address_old);
-			add_actions(itf->second, filter.actions);
+			add_regex(itf->second, "ifname", filter.ifname);
+			add_regex(itf->second, "address", filter.address);
+			add_regex(itf->second, "state", filter.state);
+			add_regex(itf->second, "ifname_old", filter.ifname_old);
+			add_regex(itf->second, "state_old", filter.state_old);
+			add_regex(itf->second, "address_old", filter.address_old);
+			add_actions(itf->second.object_items(), filter.actions);
 			filters_link.push_back(std::move(filter));
 		}
 	}
 }
 
-static void add_address_events(const boost::property_tree::ptree& pt, std::string&& atype, Actions& actions, FiltersAddress& filters_address)
+static void add_address_events(const json11::Json::object& jo, std::string&& atype, Actions& actions, FiltersAddress& filters_address)
 {
-	auto events = pt.equal_range(std::move(atype));
+	auto events = jo.equal_range(std::move(atype));
 	for (auto it = events.first; it != events.second; ++it ) {
-		add_actions(it->second, actions);
-		auto filters = it->second.equal_range("filter");
+		add_actions(it->second.object_items(), actions);
+		auto filters = it->second.object_items().equal_range("filter");
 		for (auto itf = filters.first; itf != filters.second; ++itf ) {
 			FilterAddress filter;
-			add_regex(itf, "ifname", filter.ifname);
-			add_regex(itf, "address", filter.address);
-			add_regex(itf, "broadcast", filter.broadcast);
-			filter.type = itf->second.get<std::string>("type", "");
-			add_actions(itf->second, filter.actions);
+			add_regex(itf->second, "ifname", filter.ifname);
+			add_regex(itf->second, "address", filter.address);
+			add_regex(itf->second, "broadcast", filter.broadcast);
+			filter.type = itf->second["type"].string_value();
+			add_actions(itf->second.object_items(), filter.actions);
 			filters_address.push_back(std::move(filter));
 		}
 	}
 }
 
-static void add_route_events(const boost::property_tree::ptree& pt, std::string&& atype, Actions& actions, FiltersRoute& filters_route)
+static void add_route_events(const json11::Json::object& jo, std::string&& atype, Actions& actions, FiltersRoute& filters_route)
 {
-	auto events = pt.equal_range(std::move(atype));
+	auto events = jo.equal_range(std::move(atype));
 	for (auto it = events.first; it != events.second; ++it ) {
-		add_actions(it->second, actions);
-		auto filters = it->second.equal_range("filter");
+		add_actions(it->second.object_items(), actions);
+		auto filters = it->second.object_items().equal_range("filter");
 		for (auto itf = filters.first; itf != filters.second; ++itf ) {
 			FilterRoute filter;
-			add_regex(itf, "ifname", filter.ifname);
-			add_regex(itf, "destination", filter.address);
-			add_regex(itf, "gateway", filter.gateway);
-			filter.type = itf->second.get<std::string>("type", "");
-			add_regex(itf, "scope", filter.scope);
-			add_actions(itf->second, filter.actions);
+			add_regex(itf->second, "ifname", filter.ifname);
+			add_regex(itf->second, "destination", filter.address);
+			add_regex(itf->second, "gateway", filter.gateway);
+			filter.type = itf->second["type"].string_value();
+			add_regex(itf->second, "scope", filter.scope);
+			add_actions(itf->second.object_items(), filter.actions);
 			filters_route.push_back(std::move(filter));
 		}
 	}
@@ -316,22 +319,33 @@ static void add_route_events(const boost::property_tree::ptree& pt, std::string&
 
 void Settings::load(const std::string& path)
 {
-	boost::property_tree::ptree pt;
-	read_json(path, pt);
-
-	link_new_for_existing_links = pt.get<bool>("link_new_for_existing_links", false);
-	addr_new_for_existing_addresses = pt.get<bool>("addr_new_for_existing_addresses", false);
-	route_new_for_existing_routes = pt.get<bool>("route_new_for_existing_routes", false);
-	pid_file = pt.get<std::string>("pid_file", "");
-	max_exec_queue_elements = pt.get<unsigned>("max_exec_queue_elements", 1100);
+	json11::Json json;
+	{
+	std::ifstream t(path);
+	t.seekg(0, std::ios::end);
+	size_t size = t.tellg();
+	std::string buffer(size, ' ');
+	t.seekg(0);
+	t.read(&buffer[0], size);
+	std::string err;
+	json = json11::Json::parse(buffer, err, json11::JsonParse::COMMENTS);
+	if (!err.empty()) {
+		throw std::invalid_argument("json11: '" + err + '\'');
+	}
+	}
+	link_new_for_existing_links = json["link_new_for_existing_links"].as_bool();
+	addr_new_for_existing_addresses = json["addr_new_for_existing_addresses"].as_bool();
+	route_new_for_existing_routes = json["route_new_for_existing_routes"].as_bool();
+	pid_file = json["pid_file"].string_value();
+	max_exec_queue_elements = json["max_exec_queue_elements"].as_int(1100);
 	if (!max_exec_queue_elements)
 		throw std::invalid_argument("max_exec_queue_elements should never be 0");
-	exec_max_exec_queue_elements = pt.get<std::string>("exec_max_exec_queue_elements", "");
-	rate_limit_seconds_exec_max_exec_queue_elements = pt.get<unsigned>("rate_limit_seconds_exec_max_exec_queue_elements", 60);
-	max_routes_per_link = pt.get<unsigned>("max_routes_per_link", 1000);
-	exec_max_routes_per_link = pt.get<std::string>("exec_max_routes_per_link", "");
-	rate_limit_seconds_exec_max_routes_per_link = pt.get<unsigned>("rate_limit_seconds_exec_max_routes_per_link", 60);
-	boost::property_tree::ptree& events(pt.get_child("events"));
+	exec_max_exec_queue_elements = json["exec_max_exec_queue_elements"].string_value();
+	rate_limit_seconds_exec_max_exec_queue_elements = json["rate_limit_seconds_exec_max_exec_queue_elements"].as_int(60);
+	max_routes_per_link = json["max_routes_per_link"].as_int(1000);
+	exec_max_routes_per_link = json["exec_max_routes_per_link"].string_value();
+	rate_limit_seconds_exec_max_routes_per_link = json["rate_limit_seconds_exec_max_routes_per_link"].as_int(60);
+	json11::Json::object events(json["events"].object_items());
 	add_link_events(events, "link_new", actions_link_new, filters_link_new);
 	add_link_events(events, "link_del", actions_link_del, filters_link_del);
 	add_address_events(events, "addr_new", actions_addr_new, filters_addr_new);
