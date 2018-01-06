@@ -140,6 +140,17 @@ public:
 
     // Return the enclosed value if this is a boolean, false otherwise.
     bool bool_value() const;
+    bool as_bool() const {
+        if (is_bool())
+            return bool_value();
+        else if (is_number())
+            return int_value();
+        else if (is_string()) {
+            if (string_value() == "1" || string_value() == "true")
+                return true;
+        }
+        return false;
+    }
     // Return the enclosed string if this is a string, "" otherwise.
     const std::string &string_value() const;
     // Return the enclosed std::vector if this is an array, or an empty vector otherwise.
