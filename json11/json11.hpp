@@ -85,7 +85,7 @@ public:
 
     // Array and object typedefs
     typedef std::vector<Json> array;
-    typedef std::map<std::string, Json> object;
+    typedef std::multimap<std::string, Json> object;
 
     // Constructors for the various types of JSON value.
     Json() noexcept;                // NUL
