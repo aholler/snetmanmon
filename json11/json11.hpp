@@ -137,6 +137,21 @@ public:
     // can both be applied to a NUMBER-typed object.
     double number_value() const;
     int int_value() const;
+    int as_int(int default_value = 0) const {
+        if (is_null())
+            return default_value;
+        else if (is_number())
+            return int_value();
+        else if (is_bool())
+            return bool_value();
+        else if (is_string())
+            try {
+                return std::stoi(string_value());
+            } catch (const std::exception&) {
+                return default_value;
+            }
+        return default_value;
+    }
 
     // Return the enclosed value if this is a boolean, false otherwise.
     bool bool_value() const;
