@@ -1,3 +1,10 @@
+snetmanmon (1.4) unstable; urgency=medium
+
+  * Use json11 instead of boost::property_tree (side effect: it now compiles
+    with boost 1.49 too)
+
+ -- Alexander Holler <holler@ahsoftware.de>  Tue, 09 Jan 2018 22:18:42 +0100
+
 snetmanmon (1.3) unstable; urgency=medium
 
   * Utilitiy send_rpc_ra
