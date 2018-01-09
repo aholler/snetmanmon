@@ -30,7 +30,7 @@ INSTALL(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/${TARGET} DESTINATION bin)
 
 SET_TARGET_PROPERTIES(${TARGET} PROPERTIES
 	COMPILE_FLAGS "$ENV{CXXFLAGS} -std=gnu++11 -pthread -pedantic -Wall -Wextra -I."
-	LINK_FLAGS "$ENV{LDFLAGS} -pthread"
+	LINK_FLAGS "$ENV{LDFLAGS} -pthread -Wl,--as-needed"
 )
 
 add_custom_target(version.h
@@ -46,6 +46,6 @@ SET_SOURCE_FILES_PROPERTIES(${TARGET}.cpp PROPERTIES OBJECT_DEPENDS ${CMAKE_CURR
 add_executable(send_rpc_ra send_rpc_ra.cpp)
 SET_TARGET_PROPERTIES(send_rpc_ra PROPERTIES
 	COMPILE_FLAGS "$ENV{CXXFLAGS} -std=gnu++11 -pedantic -Wall -Wextra"
-	LINK_FLAGS "$ENV{LDFLAGS}"
+	LINK_FLAGS "$ENV{LDFLAGS} -Wl,--as-needed"
 )
 INSTALL(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/send_rpc_ra DESTINATION sbin)
