@@ -1,3 +1,10 @@
+snetmanmon (1.5) unstable; urgency=medium
+
+  * Fix operator!= for netlink_route_endpoint in order to let the code compile
+    with gcc-9.3
+
+ -- Alexander Holler <holler@ahsoftware.de>  Sun, 27 Sep 2020 06:44:27 +0200
+
 snetmanmon (1.4) unstable; urgency=medium
 
   * Use json11 instead of boost::property_tree (side effect: it now compiles
