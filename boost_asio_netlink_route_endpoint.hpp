@@ -98,7 +98,8 @@ public:
 	/// Compare two endpoints for inequality.
 	friend bool operator!=(const netlink_route_endpoint& e1,
 			const netlink_route_endpoint& e2) {
-		return e1._address == &e2._address;
+		return e1._address.nl_pid != e2._address.nl_pid
+			|| e1._address.nl_groups != e2._address.nl_groups;
 	}
 
 	/// Compare endpoints for ordering.
